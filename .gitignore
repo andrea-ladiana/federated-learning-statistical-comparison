@@ -49,6 +49,9 @@ Thumbs.db
 *.log
 output.txt
 
+# Experiment results directory
+experiment_results/
+
 # Temporary files
 *.tmp
 *.temp
