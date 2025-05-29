@@ -834,8 +834,8 @@ If you use this framework in your research, please cite:
 
 ```bibtex
 @misc{federated_learning_framework,
-  title={Comprehensive Federated Learning Framework with Flower},
-  year={2024},
+  title={A statistical analysis of aggregation algorithms for Federated Learning},
+  year={2025},
   url={https://github.com/andrea-ladiana/federated-learning-statistical-comparison}
 }
 ```
