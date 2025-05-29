@@ -1,0 +1,136 @@
+from flwr.common import Parameters, Scalar
+from typing import Dict, List, Optional, Tuple, Union, Any, Callable
+from flwr.common.typing import NDArrays
+import abc
+import numpy as np
+import logging
+import io
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("strategies")
+
+# Correct type for evaluate_fn
+EvaluateFnType = Callable[[int, NDArrays, Dict[str, Scalar]], Optional[Tuple[float, Dict[str, Scalar]]]]
+
+def parameters_to_ndarrays(parameters: Parameters) -> List[np.ndarray]:
+    """Convert parameters to numpy ndarrays with improved error handling."""
+    try:
+        # Assuming parameters.tensors contains bytes in .npy format
+        return [np.load(io.BytesIO(param_bytes), allow_pickle=False) for param_bytes in parameters.tensors]
+    except Exception as e:
+        logger.error(f"Error converting parameters to ndarrays: {str(e)}")
+        # Return empty list or default parameters if conversion fails
+        return []
+
+def ndarrays_to_parameters(ndarrays: List[np.ndarray]) -> Parameters:
+    """Convert numpy ndarrays to parameters with improved error handling."""
+    try:
+        tensors = []
+        for ndarray in ndarrays:
+            # Ensure the array is contiguous and correct dtype
+            ndarray_contiguous = np.ascontiguousarray(ndarray, dtype=np.float32)
+            bytes_io = io.BytesIO()
+            np.save(bytes_io, ndarray_contiguous, allow_pickle=False)
+            tensors.append(bytes_io.getvalue())
+        return Parameters(tensors=tensors, tensor_type="numpy.ndarray")
+    except Exception as e:
+        logger.error(f"Error converting ndarrays to parameters: {str(e)}")
+        # Return empty parameters if conversion fails
+        return Parameters(tensors=[], tensor_type="numpy.ndarray")
+
+# Additional helper for safer parameter handling
+def safe_aggregate_parameters(parameter_list: List[Parameters]) -> Parameters:
+    """Safely aggregate multiple parameter objects into one."""
+    if not parameter_list:
+        return Parameters(tensors=[], tensor_type="numpy.ndarray")
+    
+    try:
+        # Convert all parameters to ndarrays
+        all_ndarrays = [parameters_to_ndarrays(p) for p in parameter_list]
+        # Filter out empty results
+        valid_ndarrays = [arr for arr in all_ndarrays if len(arr) > 0]
+        
+        if not valid_ndarrays:
+            return Parameters(tensors=[], tensor_type="numpy.ndarray")
+        
+        # Use the first valid result as a template
+        aggregated = [np.zeros_like(layer) for layer in valid_ndarrays[0]]
+        
+        # Simple averaging
+        for ndarrays in valid_ndarrays:
+            for i, layer in enumerate(ndarrays):
+                aggregated[i] += layer / len(valid_ndarrays)
+        
+        return ndarrays_to_parameters(aggregated)
+    except Exception as e:
+        logger.error(f"Error in safe_aggregate_parameters: {str(e)}")
+        return Parameters(tensors=[], tensor_type="numpy.ndarray")
+
+def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_factors: List[float]) -> List[np.ndarray]:
+    """Aggregate model weights using weighted averaging with normalization factors and error handling."""
+    try:
+        if not weights or not normalization_factors or len(weights) != len(normalization_factors):
+            logger.error("Invalid inputs to aggregate_ndarrays_weighted")
+            return []
+        
+        # Create a list of empty ndarrays, one for each layer
+        aggregated_ndarrays = [
+            np.zeros_like(weights[0][i]) for i in range(len(weights[0]))
+        ]
+        
+        # Weighted average using normalization factors
+        for i, factor in enumerate(normalization_factors):
+            for j, weight in enumerate(weights[i]):
+                try:
+                    # Ensure weight is a proper numpy array with correct dtype
+                    if not isinstance(weight, np.ndarray):
+                        weight = np.array(weight, dtype=np.float32)
+                    weight = np.ascontiguousarray(weight, dtype=np.float32)
+                    aggregated_ndarrays[j] += weight * factor
+                except Exception as e:
+                    logger.warning(f"Error processing weight at index {i},{j}: {str(e)}")
+        
+        return aggregated_ndarrays
+    except Exception as e:
+        logger.error(f"Error in aggregate_ndarrays_weighted: {str(e)}")
+        return []
+
+# Function to calculate weighted average of metrics
+def weighted_average(metrics: List[Tuple[int, Dict[str, Scalar]]]) -> Dict[str, Scalar]:
+    # Unpack the metrics from the tuples
+    examples = [num_examples for num_examples, _ in metrics]
+    loss = [float(m["loss"]) * num_examples for num_examples, m in metrics]
+    accuracy = [float(m["accuracy"]) * num_examples for num_examples, m in metrics]
+    
+    # Calculate total examples
+    total_examples = sum(examples)
+    
+    # Return weighted averages
+    return {
+        "loss": float(sum(loss)) / total_examples,
+        "accuracy": float(sum(accuracy)) / total_examples,
+    }
+
+# Base strategy class with common functionality
+class BaseStrategy(abc.ABC):
+    """Base class for all FL strategies with common reporting and metrics handling."""
+    
+    def report_failures(self, server_round: int, failures: List[Union[Tuple[Any, Any], BaseException]], phase: str):
+        """Report client failures during a round."""
+        if failures:
+            print(f"[Server] Round {server_round}: {len(failures)} clients failed during {phase}")
+            for failure in failures:
+                if isinstance(failure, BaseException):
+                    print(f"[Server] Client failure: {str(failure)}")
+                else:
+                    client, _ = failure
+                    print(f"[Server] Client {client.cid} failed")
+    
+    def report_metrics(self, server_round: int, metrics: Dict[str, Scalar], phase: str):
+        """Report aggregated metrics."""
+        if metrics:
+            loss = metrics.get("loss", 0.0)
+            accuracy = metrics.get("accuracy", 0.0)
+            
+            print(f"[Server] Round {server_round} {phase} → accuracy={accuracy:.4f}, loss={loss:.4f}")

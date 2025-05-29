@@ -1,0 +1,54 @@
+# Directories from previous experiments
+FedAVG1/
+FedAVG2/
+FedAVG3/
+
+# Dataset files and directories
+*.tar.gz
+*.tar
+cifar-10-python.tar.gz
+cifar-10-batches-py/
+MNIST/
+FashionMNIST/
+
+# Large dataset files
+data_batch_*
+test_batch
+train-images-idx3-ubyte*
+train-labels-idx1-ubyte*
+t10k-images-idx3-ubyte*
+t10k-labels-idx1-ubyte*
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+desktop.ini
+**/desktop.ini
+.DS_Store
+Thumbs.db
+
+# Output and log files
+*.log
+output.txt
+
+# Temporary files
+*.tmp
+*.temp
