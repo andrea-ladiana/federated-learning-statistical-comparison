@@ -51,6 +51,7 @@ output.txt
 
 # Experiment results directory
 experiment_results/
+analysis_plots/
 
 # Temporary files
 *.tmp

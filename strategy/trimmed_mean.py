@@ -196,7 +196,7 @@ class CustomTrimmedMean(TrimmedMean, BaseStrategy):
         # Print TrimmedMean-specific information
         if "values_trimmed" in metrics:
             values_trimmed = metrics["values_trimmed"]
-            print(f"[Server] Round {server_round} → Trimmed Mean removed {values_trimmed} extreme values " +
+            print(f"[Server] Round {server_round} -> Trimmed Mean removed {values_trimmed} extreme values " +
                   f"({self.beta*100:.1f}% from each end)")
         
         # Return the original parameters and metrics

@@ -107,7 +107,7 @@ class FedNova(FedAvg):
             return None, {}
         
         # Calculate normalization factors for each client according to FedNova paper
-        print(f"[Server] Round {server_round} → Calculating FedNova normalization factors:")
+        print(f"[Server] Round {server_round} -> Calculating FedNova normalization factors:")
         
         norm_factors = []
         for i, (_, num_examples, num_steps) in enumerate(weights_results):

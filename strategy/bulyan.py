@@ -294,7 +294,7 @@ class CustomBulyan(Bulyan, BaseStrategy):
         if "bulyan_selected_models" in metrics and "bulyan_trimmed_params" in metrics:
             models_selected = metrics["bulyan_selected_models"]
             params_trimmed = metrics["bulyan_trimmed_params"]
-            print(f"[Server] Round {server_round} → Bulyan selected {models_selected} models " +
+            print(f"[Server] Round {server_round} -> Bulyan selected {models_selected} models " +
                   f"and trimmed {params_trimmed} values per parameter " +
                   f"({self.num_byzantine} smallest, {self.num_byzantine} largest)")
         

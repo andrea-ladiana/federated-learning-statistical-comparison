@@ -231,7 +231,7 @@ class CustomFedAdam(FedAdam, BaseStrategy):
         if "fedadam_grad_norm" in metrics:
             grad_norm = metrics["fedadam_grad_norm"]
             server_lr = metrics.get("fedadam_server_lr", self.server_learning_rate)
-            print(f"[Server] Round {server_round} → FedAdam gradient norm: {grad_norm:.6f}, "
+            print(f"[Server] Round {server_round} -> FedAdam gradient norm: {grad_norm:.6f}, "
                   f"server LR: {server_lr}")
         
         # Return the original parameters and metrics

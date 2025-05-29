@@ -126,11 +126,10 @@ class BaseStrategy(abc.ABC):
                 else:
                     client, _ = failure
                     print(f"[Server] Client {client.cid} failed")
-    
     def report_metrics(self, server_round: int, metrics: Dict[str, Scalar], phase: str):
         """Report aggregated metrics."""
         if metrics:
             loss = metrics.get("loss", 0.0)
             accuracy = metrics.get("accuracy", 0.0)
             
-            print(f"[Server] Round {server_round} {phase} → accuracy={accuracy:.4f}, loss={loss:.4f}")
+            print(f"[Server] Round {server_round} {phase} -> accuracy={accuracy:.4f}, loss={loss:.4f}")

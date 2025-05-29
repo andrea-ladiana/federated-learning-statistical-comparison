@@ -250,7 +250,7 @@ class CustomKrum(Krum, BaseStrategy):
         if "krum_selected_clients" in metrics:
             num_selected = metrics["krum_selected_clients"]
             method_name = "Multi-Krum" if self.multi_krum else "Krum"
-            print(f"[Server] Round {server_round} → {method_name} selected {num_selected} client{'s' if num_selected == 1 else 's'}")
+            print(f"[Server] Round {server_round} -> {method_name} selected {num_selected} client{'s' if num_selected == 1 else 's'}")
         
         # Return the original parameters and metrics
         return aggregated_parameters, metrics
