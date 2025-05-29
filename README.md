@@ -836,7 +836,7 @@ If you use this framework in your research, please cite:
 @misc{federated_learning_framework,
   title={Comprehensive Federated Learning Framework with Flower},
   year={2024},
-  url={https://github.com/your-repo/federated-learning}
+  url={https://github.com/andrea-ladiana/federated-learning-statistical-comparison}
 }
 ```
 
@@ -849,4 +849,4 @@ If you use this framework in your research, please cite:
 
 ---
 
-For more information, support, or to report issues, please visit our [GitHub repository](https://github.com/your-repo/federated-learning) or contact the development team.
+For more information, support, or to report issues, please visit our [GitHub repository](https://github.com/andrea-ladiana/federated-learning-statistical-comparison) or contact the development team.
