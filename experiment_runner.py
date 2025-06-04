@@ -24,6 +24,7 @@ import socket
 import signal
 import psutil
 import traceback
+import argparse
 from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
 from datetime import datetime
@@ -338,7 +339,7 @@ class ExperimentRunner:
                     # Log ultimi 10 righe di output per debug
                     if output_lines:
                         logger.error("Last 10 lines of output:")
-                        for line in output_lines[-10:]:
+                        for line in list(output_lines)[-10:]:
                             logger.error(f"  {line}")
                     return False
                     
@@ -350,7 +351,7 @@ class ExperimentRunner:
                 # Log ultimi 10 righe di output per debug
                 if output_lines:
                     logger.error("Last 10 lines before timeout:")
-                    for line in output_lines[-10:]:
+                    for line in list(output_lines)[-10:]:
                         logger.error(f"  {line}")
                 return False
                 
@@ -458,12 +459,15 @@ class ExperimentRunner:
                     "metric": "server_loss",
                     "value": float(loss)
                 })
-        
-        # Add all collected metrics to DataFrame
+          # Add all collected metrics to DataFrame
         if metrics_to_add:
             try:
                 new_rows = pd.DataFrame(metrics_to_add)
-                self.results_df = pd.concat([self.results_df, new_rows], ignore_index=True)
+                # Check if results_df is empty and handle accordingly
+                if self.results_df.empty:
+                    self.results_df = new_rows
+                else:
+                    self.results_df = pd.concat([self.results_df, new_rows], ignore_index=True)
                 
                 # Log debug info for first few metrics
                 if len(self.results_df) <= 20:
@@ -474,7 +478,10 @@ class ExperimentRunner:
                 # Fallback: add one metric at a time
                 for metric in metrics_to_add:
                     try:
-                        self.results_df = pd.concat([self.results_df, pd.DataFrame([metric])], ignore_index=True)
+                        if self.results_df.empty:
+                            self.results_df = pd.DataFrame([metric])
+                        else:
+                            self.results_df = pd.concat([self.results_df, pd.DataFrame([metric])], ignore_index=True)
                     except Exception as e2:
                         logger.warning(f"Failed to add single metric: {e2}")
     
