@@ -40,8 +40,17 @@ from enum import Enum
 import queue
 from contextlib import contextmanager
 
-# Import existing modules
-from experiment_runner import ExperimentConfig as BaseExperimentConfig
+# Import existing modules from reorganized structure
+import sys
+from pathlib import Path
+
+# Add paths for reorganized imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir / "experiment_runners"))
+sys.path.insert(0, str(parent_dir / "utilities"))
+sys.path.insert(0, str(parent_dir / "configuration"))
+
+from basic_experiment_runner import ExperimentConfig as BaseExperimentConfig
 from checkpoint_manager import CheckpointManager
 from retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
 from config_manager import get_config_manager

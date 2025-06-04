@@ -12,13 +12,27 @@ A comprehensive federated learning framework built on top of the Flower library,
 - **Comprehensive Baseline Integration** from the Flower ecosystem
 - **Educational Documentation** with scientific references and tutorials
 
+## 📁 Recent Reorganization
+
+> 🆕 **Major Update**: This codebase has been completely reorganized for better maintainability and clarity!
+
+**What's New:**
+- **🏛️ Organized Structure**: Files grouped into logical directories (`core/`, `experiment_runners/`, `configuration/`, `utilities/`, `scripts/`, `maintenance/`)
+- **🚀 Unified Interface**: New `run_experiments.py` script provides easy access to all experiment runners
+- **⚡ Enhanced Runners**: Advanced experiment runners with parallel execution, checkpoints, and monitoring
+- **📊 Better Monitoring**: Real-time experiment monitoring and analysis tools
+- **🔧 Improved Setup**: Streamlined setup and testing scripts
+
+**Migration:** See [REORGANIZATION_GUIDE.md](REORGANIZATION_GUIDE.md) for detailed migration information and new usage patterns.
+
 ## Table of Contents
 
+- [Recent Reorganization](#recent-reorganization)
 - [Overview](#overview)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Experiment Runner](#experiment-runner)
+- [Experiment Runners](#experiment-runners)
 - [Enhanced Experiment Runner](#enhanced-experiment-runner)
 - [Command-Line Usage](#command-line-usage)
 - [Aggregation Strategies](#aggregation-strategies)
@@ -84,7 +98,7 @@ This federated learning framework provides a complete research and educational e
 1. **Clone the repository:**
 ```bash
 git clone <repository-url>
-cd v3
+cd federated-learning-statistical-comparison
 ```
 
 2. **Create a virtual environment:**
@@ -95,28 +109,67 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 3. **Install dependencies:**
 ```bash
-pip install -r requirements.txt
+pip install -r configuration/requirements.txt
 ```
 
 4. **Alternative: Use conda environment:**
 ```bash
-conda env create -f environment.yml
+conda env create -f configuration/environment.yml
 conda activate federated-learning
 ```
 
-5. **Install Flower (if needed):**
+5. **Setup and verification:**
+```bash
+# Quick setup
+python setup.py
+
+# Detailed setup with testing
+python maintenance/setup_and_test.py
+
+# Install Flower (if needed)
+python maintenance/install_flower.py
+```
+
+6. **Verify installation:**
+```bash
+# Test models work correctly
+python scripts/verify_models.py
+
+# Run a quick test
+python run_experiments.py --runner enhanced --test-mode --num-runs 1
+```
 ```bash
 python install_flower.py
 ```
 
 ## Quick Start
 
+> 🆕 **New Unified Interface**: Use the `run_experiments.py` script for easy access to all experiment runners.
+
 ### Basic Federated Learning
 
 Run a simple federated learning simulation with FedAvg strategy:
 
 ```bash
-python server.py --strategy fedavg --model CNNNet --dataset mnist --num_clients 10 --num_rounds 10
+python core/server.py --strategy fedavg --model CNNNet --dataset mnist --num_clients 10 --num_rounds 10
+```
+
+### Unified Experiment Interface (Recommended)
+
+Use the new unified interface for running experiments:
+
+```bash
+# Run enhanced experiments (recommended)
+python run_experiments.py --runner enhanced --num-runs 10
+
+# Run in parallel mode for faster execution
+python run_experiments.py --runner enhanced --num-runs 10 --parallel
+
+# Run extensive experiments with full configuration matrix
+python run_experiments.py --runner extensive --num-runs 5
+
+# Test mode with minimal configurations
+python run_experiments.py --runner enhanced --test-mode --num-runs 2
 ```
 
 ### With Attack Simulation
@@ -124,12 +177,45 @@ python server.py --strategy fedavg --model CNNNet --dataset mnist --num_clients 
 Run federated learning with adversarial attacks:
 
 ```bash
-python run_with_attacks.py --strategy fedavg --model CNNNet --dataset cifar10 --attack_type label_flipping --malicious_clients 2
+python experiment_runners/run_with_attacks.py --strategy fedavg --model CNNNet --dataset cifar10 --attack_type label_flipping --malicious_clients 2
 ```
 
-## 🧪 Experiment Runner
+### Setup and Verification
 
-The framework includes a sophisticated experiment runner (`experiment_runner.py`) for systematic research studies that automates the execution of multiple federated learning configurations.
+```bash
+# Quick setup and environment check
+python setup.py
+
+# Detailed setup with testing
+python maintenance/setup_and_test.py
+
+# Verify models work after reorganization
+python scripts/verify_models.py
+```
+
+### Monitoring and Analysis
+
+```bash
+# Monitor running experiments in real-time
+python scripts/monitor_experiments.py --watch
+
+# Analyze results with visualization
+python scripts/results_analyzer.py --results-file enhanced_results/experiment_results.csv
+```
+
+## 🧪 Experiment Runners
+
+> 📁 **Reorganized**: Experiment runners are now organized in the `experiment_runners/` directory with different capabilities.
+
+The framework includes multiple experiment runners for different research needs:
+
+### Available Runners
+
+1. **`basic_experiment_runner.py`** - Basic systematic experiment execution
+2. **`stable_experiment_runner.py`** - Stable version with enhanced error handling
+3. **`enhanced_experiment_runner.py`** - Advanced runner with parallel execution, checkpoints, and monitoring
+4. **`run_extensive_experiments.py`** - Comprehensive experiment suite
+5. **`run_with_attacks.py`** - Specialized attack simulation orchestrator
 
 ### Key Features
 
@@ -139,19 +225,32 @@ The framework includes a sophisticated experiment runner (`experiment_runner.py`
 - **Intermediate result saving** to prevent data loss during long experiments
 - **Error handling and recovery** for robust execution
 - **CSV and JSON export** for analysis in external tools
+- **🆕 Parallel execution** and checkpoint/resume functionality (enhanced runner)
 
 ### Basic Usage
 
-#### Run Systematic Experiments
+#### Using the Unified Interface (Recommended)
 ```bash
-# Run complete experiment suite (all strategies × all attacks × all datasets)
-python experiment_runner.py --num-runs 10
+# Run enhanced experiments with automatic configuration
+python run_experiments.py --runner enhanced --num-runs 10
 
 # Run in test mode with reduced configurations
-python experiment_runner.py --test-mode --num-runs 3
+python run_experiments.py --runner enhanced --test-mode --num-runs 3
 
-# Specify custom results directory
-python experiment_runner.py --results-dir my_results --num-runs 5
+# Run with parallel execution
+python run_experiments.py --runner enhanced --num-runs 10 --parallel
+```
+
+#### Direct Runner Usage
+```bash
+# Basic experiment runner
+python experiment_runners/basic_experiment_runner.py --num-runs 10
+
+# Enhanced runner with advanced features
+python experiment_runners/enhanced_experiment_runner.py --num-runs 10 --parallel
+
+# Extensive experiments
+python experiment_runners/run_extensive_experiments.py --num-runs 5
 ```
 
 #### Experiment Configuration
@@ -897,34 +996,62 @@ The framework supports evaluation of various defense mechanisms:
 
 ## Project Structure
 
+> ⚠️ **Updated Structure**: This project has been reorganized for better maintainability. See [REORGANIZATION_GUIDE.md](REORGANIZATION_GUIDE.md) for migration details.
+
 ```
-v4/
+federated-learning-statistical-comparison/
 ├── README.md                        # This comprehensive guide
-├── requirements.txt                 # Python dependencies
-├── environment.yml                 # Conda environment configuration
-├── setup.py                        # Package installation script
+├── REORGANIZATION_GUIDE.md         # Detailed reorganization documentation
 ├── LICENSE                         # MIT License
+├── run_experiments.py              # Unified experiment execution interface
+├── setup.py                        # Package installation script
 │
-├── server.py                       # Main FL server entry point
-├── client.py                       # FL client implementation
-├── run_with_attacks.py             # Attack simulation orchestrator
-├── experiment_runner.py            # Systematic experiment automation
-├── results_analyzer.py             # Results analysis and visualization
-├── strategies.py                   # Strategy factory and configuration
-├── models/                         # Neural network model implementations
-├── attack_config.py                # Attack configuration and factory
-├── utils.py                        # Utility functions and helpers
-├── fl_attacks.py                   # Attack implementation utilities
-├── verify_models.py                # Model verification and testing
+├── core/                           # 🏛️ Core FL Components
+│   ├── server.py                   # Main FL server entry point
+│   ├── client.py                   # FL client implementation
+│   └── strategies.py               # Strategy factory and configuration
 │
-├── models/                         # Neural network model implementations
+├── experiment_runners/             # 🧪 Experiment Execution
+│   ├── basic_experiment_runner.py  # Basic experiment automation (formerly experiment_runner.py)
+│   ├── stable_experiment_runner.py # Stable version with fixes (formerly experiment_runner_fixed.py)
+│   ├── enhanced_experiment_runner.py # Advanced runner with parallel execution, checkpoints
+│   ├── run_extensive_experiments.py # Comprehensive experiment suite
+│   └── run_with_attacks.py         # Attack simulation orchestrator
+│
+├── configuration/                  # ⚙️ Configuration Management
+│   ├── config_manager.py           # Centralized configuration management
+│   ├── enhanced_config.yaml        # Main configuration file
+│   ├── attack_config.py            # Attack configuration and factory
+│   ├── requirements.txt            # Python dependencies
+│   └── environment.yml             # Conda environment configuration
+│
+├── utilities/                      # 🔧 Support Utilities
+│   ├── checkpoint_manager.py       # Experiment checkpoint and resume functionality
+│   ├── retry_manager.py            # Intelligent retry system for failed experiments
+│   ├── utils.py                    # Utility functions and helpers
+│   └── fl_attacks.py               # Attack implementation wrapper
+│
+├── scripts/                        # 📊 Operational Scripts
+│   ├── monitor_experiments.py      # Real-time experiment monitoring
+│   ├── results_analyzer.py         # Results analysis and visualization
+│   ├── verify_models.py            # Model verification after reorganization
+│   └── start_clients.bat           # Batch script to start multiple FL clients
+│
+├── maintenance/                    # 🔧 Setup and Testing
+│   ├── setup_and_test.py           # System setup and validation
+│   ├── install_flower.py           # Flower library installation helper
+│   ├── test_experiment_runner.py   # Experiment runner testing
+│   └── setup.py                    # Alternative setup script
+│
+├── models/                         # 🧠 Neural network model implementations
 │   ├── __init__.py                 # Model registry and exports
 │   ├── cnn.py                      # CNNNet implementation
 │   ├── minimal_cnn.py              # TinyMNIST and MinimalCNN
 │   ├── miniresnet20.py            # MiniResNet20 implementation
-│   └── optaegv3.py                # OptAEGV3 efficient architecture
+│   ├── optaegv3.py                # OptAEGV3 efficient architecture
+│   └── simple.py                   # Simple neural network models
 │
-├── strategy/                       # FL aggregation strategy implementations
+├── strategy/                       # 🎯 FL aggregation strategy implementations
 │   ├── __init__.py                 # Strategy registry
 │   ├── fedavg.py                   # FedAvg implementation
 │   ├── fedprox.py                  # FedProx with proximal term
@@ -937,7 +1064,7 @@ v4/
 │   ├── trimmed_mean.py             # TrimmedMean robust aggregation
 │   └── baseline_wrappers.py        # Flower baseline strategy wrappers
 │
-├── attacks/                        # Adversarial attack implementations
+├── attacks/                        # ⚔️ Adversarial attack implementations
 │   ├── __init__.py                 # Attack registry and utilities
 │   ├── README.md                   # Attack documentation
 │   ├── label_flipping.py           # Label flipping attack
@@ -947,7 +1074,7 @@ v4/
 │   ├── client_failure.py           # Client dropout simulation
 │   └── missed_class.py             # Selective class exclusion
 │
-├── baselines/                      # Flower ecosystem baseline integrations
+├── baselines/                      # 📚 Flower ecosystem baseline integrations
 │   ├── README.md                   # Baseline documentation
 │   ├── dasha/                      # DASHA compression-based FL
 │   ├── depthfl/                    # DepthFL depth-wise learning
@@ -1488,6 +1615,37 @@ For questions, issues, or contributions:
 **Latest Version**: v4.0 (2025)  
 **Compatibility**: Python 3.8+, PyTorch 1.9+, Flower 1.0+  
 **Status**: Active development and maintenance  
+
+## 📝 Recent Updates & Changelog
+
+### 🆕 Major Reorganization (Latest)
+
+**What Changed:**
+- **📁 Complete File Reorganization**: Moved from flat structure to organized directories
+- **🚀 New Unified Interface**: `run_experiments.py` provides easy access to all runners
+- **⚡ Enhanced Experiment Runners**: New parallel execution, checkpoints, and monitoring
+- **🔧 Better Setup Process**: Streamlined installation and verification scripts
+- **📊 Advanced Monitoring**: Real-time experiment tracking and analysis tools
+
+**New Directory Structure:**
+```
+├── core/                    # Core FL components (server, client, strategies)
+├── experiment_runners/      # All experiment execution scripts
+├── configuration/          # Configuration files and managers
+├── utilities/              # Support utilities (checkpoints, retry, etc.)
+├── scripts/                # Monitoring and analysis scripts  
+├── maintenance/            # Setup and testing tools
+└── [existing directories]  # Models, strategies, attacks, baselines unchanged
+```
+
+**Migration Benefits:**
+- ✅ **Better Organization**: Logical grouping of related functionality
+- ✅ **Easier Maintenance**: Clear separation of concerns
+- ✅ **Enhanced Features**: New parallel execution and monitoring capabilities
+- ✅ **Backward Compatibility**: All original functionality preserved
+- ✅ **Better Documentation**: Comprehensive guides and examples
+
+**For detailed migration information, see [REORGANIZATION_GUIDE.md](REORGANIZATION_GUIDE.md)**
 
 ---
 

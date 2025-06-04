@@ -12,8 +12,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 
-# Aggiungi la directory corrente al path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add paths for reorganized imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir / "utilities"))
+sys.path.insert(0, str(parent_dir / "configuration"))
 
 from checkpoint_manager import CheckpointManager
 from config_manager import get_config_manager

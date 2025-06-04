@@ -12,8 +12,15 @@ import argparse
 import json
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
+import sys
 
-from experiment_runner import ExperimentRunner, ExperimentConfig
+# Add paths for reorganized imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir / "experiment_runners"))
+sys.path.insert(0, str(parent_dir / "utilities"))
+sys.path.insert(0, str(parent_dir / "configuration"))
+
+from basic_experiment_runner import ExperimentRunner, ExperimentConfig
 from checkpoint_manager import CheckpointManager
 from retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
 from config_manager import get_config_manager

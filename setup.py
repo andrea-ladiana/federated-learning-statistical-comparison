@@ -1,46 +1,55 @@
+#!/usr/bin/env python3
 """
-Script per installare le dipendenze necessarie per il progetto FL.
+Quick setup script for the federated learning environment.
+
+This script helps set up the environment and runs basic checks to ensure
+everything is working correctly after the reorganization.
 """
+
 import sys
 import subprocess
+from pathlib import Path
+
+# Add paths for reorganized structure
+sys.path.insert(0, str(Path(__file__).parent / "maintenance"))
+sys.path.insert(0, str(Path(__file__).parent / "configuration"))
 
 def main():
-    print("Installazione delle dipendenze necessarie...")
+    print("=" * 60)
+    print("FEDERATED LEARNING FRAMEWORK SETUP")
+    print("=" * 60)
+    print()
     
-    # Controlla se siamo in un ambiente virtuale
-    in_venv = hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
-    if not in_venv:
-        print("ATTENZIONE: Non sei in un ambiente virtuale Python!")
-        proceed = input("Vuoi procedere comunque? (s/n): ")
-        if proceed.lower() != 's':
-            print("Installazione annullata.")
-            print("\nConsiglio: Crea un ambiente virtuale prima di installare le dipendenze:")
-            print("python -m venv venv")
-            print("venv\\Scripts\\activate  # su Windows")
-            print("source venv/bin/activate  # su Linux/Mac")
-            return
+    print("🔧 Setting up the reorganized federated learning framework...")
+    print()
     
-    # Installa le dipendenze da requirements.txt
+    # Import and run setup
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
-        print("\nDipendenze installate con successo!")
+        from setup_and_test import main as setup_main
+        setup_main()
+    except ImportError as e:
+        print(f"❌ Could not import setup script: {e}")
+        print("Running basic checks instead...")
         
-        # Verifica l'installazione
-        print("\nVerifica dell'installazione:")
-        try:
-            import flwr
-            print(f"✓ Flower versione: {flwr.__version__}")
-            import torch
-            print(f"✓ PyTorch versione: {torch.__version__}")
-            import torchvision
-            print(f"✓ TorchVision versione: {torchvision.__version__}")
-            print("\nInstallazione completata con successo! Il sistema è pronto per eseguire esperimenti FL.")
-        except ImportError as e:
-            print(f"⚠ Errore nel verificare l'installazione: {e}")
-            print("Alcune dipendenze potrebbero non essere state installate correttamente.")
-    except subprocess.CalledProcessError as e:
-        print(f"Errore durante l'installazione: {e}")
-        print("Controlla la connessione internet e i permessi di installazione.")
+        # Basic Python environment check
+        print(f"✓ Python version: {sys.version}")
+        print(f"✓ Python executable: {sys.executable}")
+        
+        # Check key directories exist
+        key_dirs = ["core", "experiment_runners", "configuration", "utilities", "scripts", "maintenance"]
+        for dir_name in key_dirs:
+            dir_path = Path(dir_name)
+            if dir_path.exists():
+                print(f"✓ Directory exists: {dir_name}/")
+            else:
+                print(f"❌ Missing directory: {dir_name}/")
+        
+        print()
+        print("🚀 To run experiments, use:")
+        print("   python run_experiments.py --help")
+        print()
+        print("📊 To monitor experiments, use:")
+        print("   python scripts/monitor_experiments.py")
 
 if __name__ == "__main__":
     main()

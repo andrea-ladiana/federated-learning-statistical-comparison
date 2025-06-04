@@ -17,9 +17,11 @@ from pathlib import Path
 from unittest.mock import patch, Mock
 import pandas as pd
 
-# Add the project root to the path
+# Add the project root to the path for reorganized imports
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "experiment_runners"))
+sys.path.insert(0, str(project_root / "utilities"))
+sys.path.insert(0, str(project_root / "configuration"))
 
 from enhanced_experiment_runner import (
     EnhancedExperimentRunner, EnhancedExperimentConfig, 

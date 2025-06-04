@@ -6,7 +6,14 @@ Testa un piccolo subset di configurazioni per verificare che tutto funzioni.
 
 import sys
 import os
-from experiment_runner import ExperimentRunner, ExperimentConfig, create_experiment_configurations
+from pathlib import Path
+
+# Add paths for reorganized imports
+current_dir = Path(__file__).parent
+parent_dir = current_dir.parent
+sys.path.insert(0, str(parent_dir / "experiment_runners"))
+
+from basic_experiment_runner import ExperimentRunner, ExperimentConfig, create_experiment_configurations
 import logging
 
 # Configurazione logging

@@ -56,3 +56,6 @@ analysis_plots/
 # Temporary files
 *.tmp
 *.temp
+
+# Other .md files
+REORGANIZATION_GUIDE.md

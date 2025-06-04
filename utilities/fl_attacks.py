@@ -12,5 +12,12 @@ Gli attacchi sono stati spostati nella cartella attacks/ e organizzati in moduli
 6. Gradient Flipping Attack - attacks/gradient_flipping.py
 """
 
+import sys
+from pathlib import Path
+
+# Add path for attacks import
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir / "attacks"))
+
 # Importa tutte le funzioni dai moduli degli attacchi per mantenere la compatibilità
 from attacks import *

@@ -3,8 +3,15 @@ from flwr.common import ndarrays_to_parameters, Parameters, Scalar
 from typing import Dict, List, Optional, Tuple, Union, Any
 import torch
 import torch.nn as nn
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir))
+
 from models import Net, CNNNet, TinyMNIST, MinimalCNN, MiniResNet20  # Importazione dei modelli dal modulo condiviso
-from strategies import create_strategy  # Importa il factory per le strategie
+from core.strategies import create_strategy  # Importa il factory per le strategie
 import argparse
 
 # Funzioni per contare i parametri del modello

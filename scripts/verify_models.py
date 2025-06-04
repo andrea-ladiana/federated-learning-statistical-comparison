@@ -4,7 +4,14 @@ Verification script for the reorganized models structure.
 This script demonstrates that all models work correctly after reorganization.
 """
 
+import sys
+from pathlib import Path
 import torch
+
+# Add paths for reorganized imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir / "models"))
+
 from models import Net, CNNNet, OptAEGV3, TinyMNIST, DepthwiseSeparableConv, MinimalCNN, MiniResNet20
 
 def test_model(model, model_name, input_tensor):

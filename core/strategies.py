@@ -1,16 +1,24 @@
 from flwr.server.strategy import FedAvg
 from flwr.common import Parameters
 from typing import Optional
-from strategy.bulyan import CustomBulyan
-from strategy.trimmed_mean import CustomTrimmedMean
-from strategy.krum import CustomKrum
-from strategy.fedadam import CustomFedAdam
-from strategy.scaffold import CustomSCAFFOLD
-from strategy.fedavg import CustomFedAvg
-from strategy.fedprox import CustomFedProx
-from strategy.fednova import CustomFedNova
-from strategy.fedavgm import CustomFedAvgM
-from strategy.baseline_wrappers import (
+import sys
+from pathlib import Path
+
+# Add paths for reorganized imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir / "strategy"))
+sys.path.insert(0, str(parent_dir / "utilities"))
+
+from bulyan import CustomBulyan
+from trimmed_mean import CustomTrimmedMean
+from krum import CustomKrum
+from fedadam import CustomFedAdam
+from scaffold import CustomSCAFFOLD
+from fedavg import CustomFedAvg
+from fedprox import CustomFedProx
+from fednova import CustomFedNova
+from fedavgm import CustomFedAvgM
+from baseline_wrappers import (
     BaseDashaWrapper, BaseDepthFLWrapper, BaseHeteroFLWrapper,
     BaseFedMetaWrapper, BaseFedPerWrapper, BaseFjordWrapper,
     BaseFlandersWrapper, BaseFedOptWrapper

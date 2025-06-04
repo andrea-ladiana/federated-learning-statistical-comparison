@@ -11,13 +11,17 @@ from pathlib import Path
 import subprocess
 import time
 
-# Aggiungi la directory corrente al path
-sys.path.insert(0, str(Path(__file__).parent))
+# Aggiungi la directory corrente al path per importare dalla nuova struttura
+current_dir = Path(__file__).parent
+parent_dir = current_dir.parent
+sys.path.insert(0, str(parent_dir / "configuration"))
+sys.path.insert(0, str(parent_dir / "utilities"))
+sys.path.insert(0, str(parent_dir / "experiment_runners"))
 
 from config_manager import get_config_manager, create_default_config_file
 from checkpoint_manager import CheckpointManager
 from retry_manager import RetryManager, CONSERVATIVE_RETRY
-from experiment_runner import ExperimentConfig
+from basic_experiment_runner import ExperimentConfig
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
