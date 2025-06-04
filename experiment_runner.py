@@ -95,73 +95,44 @@ class MetricsCollector:
     
     def parse_client_log(self, log_line: str, client_id: int, run_id: int) -> Optional[Dict]:
         """Estrae metriche dai log del client."""
-        patterns = [
-            # Pattern per fit metrics
-            r'fit complete.*avg_loss=([0-9.]+).*accuracy=([0-9.]+)',
-            # Pattern per evaluate metrics  
-            r'evaluate complete.*avg_loss=([0-9.]+).*accuracy=([0-9.]+)',
-            # Pattern per training metrics durante il fit
-            r'Training batch.*loss=([0-9.]+).*acc=([0-9.]+)',
-            # Pattern per evaluation metrics durante evaluate
-            r'Eval batch.*loss=([0-9.]+).*acc=([0-9.]+)'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, log_line)
-            if match:
-                loss = float(match.group(1))
-                accuracy = float(match.group(2))
-                
-                # Determina il tipo di metrica e il round
-                if 'fit complete' in log_line:
-                    metric_type = 'training'
-                elif 'evaluate complete' in log_line:
-                    metric_type = 'evaluation'
-                else:
-                    continue  # Skip intermediate metrics
-                
-                # Estrai il round se presente
-                round_match = re.search(r'Round (\d+)', log_line)
-                round_num = int(round_match.group(1)) if round_match else 0
-                
-                return {
-                    'client_id': client_id,
-                    'run': run_id,
-                    'round': round_num,
-                    'metric_type': metric_type,
-                    'loss': loss,
-                    'accuracy': accuracy
-                }
-        
+        match = re.search(r'(fit|evaluate) complete\s*\|\s*(.*)', log_line)
+        if match:
+            metric_type = 'training' if match.group(1) == 'fit' else 'evaluation'
+            metrics_str = match.group(2)
+            metrics = {}
+            for part in metrics_str.split(','):
+                if '=' in part:
+                    k, v = part.strip().split('=', 1)
+                    metrics[k.strip()] = float(v)
+
+            round_match = re.search(r'Round (\d+)', log_line)
+            round_num = int(round_match.group(1)) if round_match else 0
+
+            metrics.update({
+                'client_id': client_id,
+                'run': run_id,
+                'round': round_num,
+                'metric_type': metric_type,
+            })
+            return metrics
+
         return None
     
     def parse_server_log(self, log_line: str, run_id: int) -> Optional[Dict]:
         """Estrae metriche dai log del server."""
         # Pattern per metriche aggregate del server
-        patterns = [
-            r'Round (\d+).*aggr.*accuracy.*([0-9.]+)',
-            r'Round (\d+).*aggregated.*loss.*([0-9.]+)',
-            r'evaluate.*Round (\d+).*accuracy.*([0-9.]+)',
-            r'fit.*Round (\d+).*loss.*([0-9.]+)'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, log_line)
-            if match:
-                round_num = int(match.group(1))
-                value = float(match.group(2))
-                
-                metric_name = 'accuracy' if 'accuracy' in log_line else 'loss'
-                phase = 'evaluation' if 'evaluate' in log_line else 'training'
-                
-                return {
-                    'run': run_id,
-                    'round': round_num,
-                    'metric': metric_name,
-                    'value': value,
-                    'phase': phase
-                }
-        
+        match = re.search(r'Round (\d+).*-> (.*)', log_line)
+        if match:
+            round_num = int(match.group(1))
+            metrics_str = match.group(2)
+            metrics = {}
+            for part in metrics_str.split(','):
+                if '=' in part:
+                    k, v = part.strip().split('=', 1)
+                    metrics[k.strip()] = float(v)
+            metrics.update({'run': run_id, 'round': round_num})
+            return metrics
+
         return None
 
 class ExperimentRunner:
@@ -405,65 +376,43 @@ class ExperimentRunner:
                 logger.debug(f"Updated current round to: {self.current_round}")
                 break
         
-        # Pattern 1: Client fit complete - [Client X] fit complete | avg_loss=Y, accuracy=Z
-        client_fit_match = re.search(r'\[Client (\d+)\]\s+fit complete.*avg_loss=([0-9.]+).*accuracy=([0-9.]+)', log_line)
-        if client_fit_match:
-            client_id = int(client_fit_match.group(1))
-            loss = float(client_fit_match.group(2))
-            accuracy = float(client_fit_match.group(3))
-            
-            metrics_to_add.extend([
-                {
+        client_match = re.search(r'\[Client (\d+)\]\s+(fit|evaluate) complete\s*\|\s*(.*)', log_line)
+        if client_match:
+            client_id = int(client_match.group(1))
+            phase = client_match.group(2)
+            metrics_str = client_match.group(3)
+            metric_prefix = "" if phase == "fit" else "eval_"
+            pairs = [m.strip() for m in metrics_str.split(',') if '=' in m]
+            for pair in pairs:
+                key, val = pair.split('=', 1)
+                metrics_to_add.append({
                     "algorithm": config.strategy,
                     "attack": attack_name,
                     "dataset": config.dataset,
                     "run": run_id,
                     "client_id": client_id,
                     "round": self.current_round,
-                    "metric": "loss",
-                    "value": loss
-                },
-                {
+                    "metric": f"{metric_prefix}{key.strip()}",
+                    "value": float(val)
+                })
+
+        server_line_match = re.search(r'\[Server\] Round (\d+) .*-> (.*)', log_line)
+        if server_line_match:
+            round_num = int(server_line_match.group(1))
+            metrics_str = server_line_match.group(2)
+            pairs = [m.strip() for m in metrics_str.split(',') if '=' in m]
+            for pair in pairs:
+                key, val = pair.split('=', 1)
+                metrics_to_add.append({
                     "algorithm": config.strategy,
                     "attack": attack_name,
                     "dataset": config.dataset,
                     "run": run_id,
-                    "client_id": client_id,
-                    "round": self.current_round,
-                    "metric": "accuracy",
-                    "value": accuracy
-                }
-            ])
-        
-        # Pattern 2: Client evaluate complete - [Client X] evaluate complete | avg_loss=Y, accuracy=Z
-        client_eval_match = re.search(r'\[Client (\d+)\]\s+evaluate complete.*avg_loss=([0-9.]+).*accuracy=([0-9.]+)', log_line)
-        if client_eval_match:
-            client_id = int(client_eval_match.group(1))
-            loss = float(client_eval_match.group(2))
-            accuracy = float(client_eval_match.group(3))
-            
-            metrics_to_add.extend([
-                {
-                    "algorithm": config.strategy,
-                    "attack": attack_name,
-                    "dataset": config.dataset,
-                    "run": run_id,
-                    "client_id": client_id,
-                    "round": self.current_round,
-                    "metric": "eval_loss",
-                    "value": loss
-                },
-                {
-                    "algorithm": config.strategy,
-                    "attack": attack_name,
-                    "dataset": config.dataset,
-                    "run": run_id,
-                    "client_id": client_id,
-                    "round": self.current_round,
-                    "metric": "eval_accuracy",
-                    "value": accuracy
-                }
-            ])
+                    "client_id": -1,
+                    "round": round_num,
+                    "metric": f"server_{key.strip()}",
+                    "value": float(val)
+                })
         
         # Pattern 3: Server aggregate accuracy - {'accuracy': [(1, 0.334), (2, 0.7272), (3, 0.8848)]
         server_accuracy_match = re.search(r"'accuracy':\s*\[([^\]]+)\]", log_line)

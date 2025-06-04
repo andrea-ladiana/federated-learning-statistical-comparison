@@ -98,19 +98,17 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
 
 # Function to calculate weighted average of metrics
 def weighted_average(metrics: List[Tuple[int, Dict[str, Scalar]]]) -> Dict[str, Scalar]:
-    # Unpack the metrics from the tuples
+    """Compute weighted average for an arbitrary set of metrics."""
     examples = [num_examples for num_examples, _ in metrics]
-    loss = [float(m["loss"]) * num_examples for num_examples, m in metrics]
-    accuracy = [float(m["accuracy"]) * num_examples for num_examples, m in metrics]
-    
-    # Calculate total examples
     total_examples = sum(examples)
-    
-    # Return weighted averages
-    return {
-        "loss": float(sum(loss)) / total_examples,
-        "accuracy": float(sum(accuracy)) / total_examples,
-    }
+
+    aggregated: Dict[str, float] = {}
+    all_keys = set().union(*(m.keys() for _, m in metrics))
+    for key in all_keys:
+        values = [float(m.get(key, 0.0)) * num_examples for num_examples, m in metrics]
+        aggregated[key] = float(sum(values)) / total_examples
+
+    return aggregated
 
 # Base strategy class with common functionality
 class BaseStrategy(abc.ABC):
@@ -129,7 +127,13 @@ class BaseStrategy(abc.ABC):
     def report_metrics(self, server_round: int, metrics: Dict[str, Scalar], phase: str):
         """Report aggregated metrics."""
         if metrics:
-            loss = metrics.get("loss", 0.0)
-            accuracy = metrics.get("accuracy", 0.0)
-            
-            print(f"[Server] Round {server_round} {phase} -> accuracy={accuracy:.4f}, loss={loss:.4f}")
+            ordered_keys = ["accuracy", "loss", "precision", "recall", "f1"]
+            metric_parts = []
+            for key in ordered_keys:
+                if key in metrics:
+                    metric_parts.append(f"{key}={float(metrics[key]):.4f}")
+            remaining = [k for k in metrics.keys() if k not in ordered_keys]
+            for key in remaining:
+                metric_parts.append(f"{key}={float(metrics[key]):.4f}")
+            metrics_str = ", ".join(metric_parts)
+            print(f"[Server] Round {server_round} {phase} -> {metrics_str}")

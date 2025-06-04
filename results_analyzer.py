@@ -82,8 +82,8 @@ class ResultsAnalyzer:
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
         
-        # Filtra solo accuracy e loss per training
-        metrics_to_plot = ['accuracy', 'loss']
+        # Filtra le metriche principali
+        metrics_to_plot = ['accuracy', 'loss', 'precision', 'recall', 'f1']
         
         for dataset in self.df['dataset'].unique():
             for metric in metrics_to_plot:
@@ -265,7 +265,7 @@ class ResultsAnalyzer:
                 for round_num in run_data['round'].unique():
                     round_data = run_data[run_data['round'] == round_num]
                     
-                    for metric in ['accuracy', 'loss']:
+                    for metric in ['accuracy', 'loss', 'precision', 'recall', 'f1']:
                         metric_data = round_data[round_data['metric'] == metric]
                         
                         if len(metric_data) > 1:
@@ -293,7 +293,7 @@ class ResultsAnalyzer:
             fig.suptitle('Client Variance Evolution Over Rounds', fontsize=16)
             
             datasets = sorted(variance_df['dataset'].unique())
-            metrics = ['accuracy', 'loss']
+            metrics = ['accuracy', 'loss', 'precision', 'recall', 'f1']
             
             for i, dataset in enumerate(datasets):
                 for j, metric in enumerate(metrics):
