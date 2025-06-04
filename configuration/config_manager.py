@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SystemConfig:
     """Configurazione di sistema."""
-    max_retries: int = 3
+    max_retries: int = 2
     retry_delay: int = 5
-    process_timeout: int = 600
+    process_timeout: int = 120
     port: int = 8080
     log_level: str = "INFO"
-    checkpoint_backup_interval: int = 50  # Backup ogni N esperimenti
+    checkpoint_backup_interval: int = 20  # Backup ogni N esperimenti
     max_backups: int = 10
     
     def validate(self):
