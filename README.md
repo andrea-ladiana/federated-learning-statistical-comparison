@@ -52,7 +52,7 @@ This federated learning framework provides a complete research and educational e
 
 - **19 federated learning strategies** (10 custom implementations + 8 Flower baselines + 1 additional)
 - **Systematic experiment runner** for automated research studies with configurable parameters
-- **6 neural network models** optimized for different computational constraints
+- **5 neural network models** optimized for different computational constraints
 - **3 popular datasets** (MNIST, Fashion-MNIST, CIFAR-10) with flexible partitioning
 - **6 attack types** for comprehensive security research
 - **Comprehensive baseline integrations** from the Flower ecosystem
@@ -764,49 +764,46 @@ Integrated from the Flower ecosystem:
 
 ## Neural Network Models
 
-The framework provides 6 neural network models optimized for different scenarios:
+The framework provides 5 neural network models optimized for different scenarios:
 
-### 1. **Net (Simple MLP)**
-- **Architecture:** 2-layer Multi-Layer Perceptron
+### 1. **Net (Linear Classifier)**
+- **Architecture:** Single fully connected layer
 - **Input:** 28×28 (784 features)
-- **Layers:** 784 → 128 → 64 → 10
+- **Layers:** 784 → 10
 - **Use Case:** MNIST baseline, educational purposes
-- **Parameters:** ~101K
+- **Parameters:** ~8K
 
 ### 2. **CNNNet (Convolutional Neural Network)**
-- **Architecture:** CNN with 2 conv layers + 2 FC layers
+- **Architecture:** 2 convolutional blocks + 2 fully connected layers
 - **Input:** 28×28×1 or 32×32×3
 - **Layers:** Conv(32) → Conv(64) → FC(128) → FC(10)
 - **Use Case:** Image classification, general purpose
-- **Parameters:** ~1.2M
+- **Parameters:** ~422K
 
 ### 3. **TinyMNIST (Lightweight CNN)**
-- **Architecture:** Minimal CNN for MNIST
+- **Architecture:** Minimal CNN using the OptAEGV3 activation module
 - **Input:** 28×28×1
-- **Layers:** Conv(8) → Conv(16) → FC(10)
+- **Layers:** Conv(4) → Conv(4) → Conv(4) → FC(10)
 - **Use Case:** Resource-constrained environments
-- **Parameters:** ~25K
+- **Parameters:** ~0.7K
 
 ### 4. **MinimalCNN (Ultra-Light CNN)**
-- **Architecture:** Extremely lightweight CNN
-- **Input:** 28×28×1
-- **Layers:** Conv(4) → Conv(8) → FC(10)
+- **Architecture:** Adaptive CNN with depthwise separable convolutions
+- **Input:** 28×28×1 or 32×32×3
+- **Layers:** DSConv(32) → DSConv(64) → DSConv(128) → FC(128) → FC(10)
 - **Use Case:** Edge devices, IoT scenarios
-- **Parameters:** ~8K
+- **Parameters:** ~30K
 
 ### 5. **MiniResNet20 (Residual Network)**
 - **Architecture:** Scaled-down ResNet with 20 layers
 - **Input:** 32×32×3
 - **Layers:** ResNet blocks with skip connections
 - **Use Case:** CIFAR-10, complex image tasks
-- **Parameters:** ~270K
+- **Parameters:** ~272K
 
-### 6. **OptAEGV3 (Optimized Architecture)**
-- **Architecture:** Advanced CNN with depthwise separable convolutions
-- **Input:** Variable (adaptive)
-- **Layers:** Efficient convolutions + global pooling
-- **Use Case:** Efficient inference, mobile deployment
-- **Parameters:** ~150K
+### **OptAEGV3 (Activation Module)**
+- **Description:** Custom activation function used by TinyMNIST
+- **Use Case:** Building block for lightweight models
 
 ### Model Selection Guide
 
@@ -814,18 +811,17 @@ The framework provides 6 neural network models optimized for different scenarios
 |---------|------------------|-----------|
 | **MNIST** | TinyMNIST, Net | Simple digits, lightweight models sufficient |
 | **Fashion-MNIST** | CNNNet, MinimalCNN | More complex patterns, need conv layers |
-| **CIFAR-10** | MiniResNet20, OptAEGV3 | Complex images, require deeper networks |
+| **CIFAR-10** | MiniResNet20 | Complex images, require deeper networks |
 
 ### Model Specifications
 
 | Model | Input Size | Parameters | FLOPS | Memory (MB) | Training Time |
 |-------|------------|------------|-------|-------------|---------------|
-| Net | 28×28 | 101K | 0.2M | 0.4 | Fast |
-| CNNNet | 28×28/32×32 | 1.2M | 15M | 4.8 | Medium |
-| TinyMNIST | 28×28 | 25K | 1.2M | 0.1 | Very Fast |
-| MinimalCNN | 28×28 | 8K | 0.5M | <0.1 | Very Fast |
-| MiniResNet20 | 32×32 | 270K | 40M | 1.1 | Medium |
-| OptAEGV3 | Variable | 150K | 8M | 0.6 | Fast |
+| Net | 28×28 | 8K | 0.01M | 0.1 | Very Fast |
+| CNNNet | 28×28/32×32 | 422K | 15M | 4.8 | Medium |
+| TinyMNIST | 28×28 | 0.7K | 1.2M | <0.1 | Very Fast |
+| MinimalCNN | 28×28/32×32 | 30K | 0.5M | <0.1 | Very Fast |
+| MiniResNet20 | 32×32 | 272K | 40M | 1.1 | Medium |
 
 ## Datasets
 
