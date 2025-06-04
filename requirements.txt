@@ -4,3 +4,7 @@ torchvision
 numpy
 matplotlib
 scikit-learn
+
+psutil
+omegaconf
+pyhamcrest
