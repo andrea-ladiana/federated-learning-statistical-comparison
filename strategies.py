@@ -1,7 +1,6 @@
 from flwr.server.strategy import FedAvg
-from flwr.common import Parameters, Scalar
-from typing import Dict, List, Optional, Tuple, Union, Any, Type, Callable
-from flwr.common.typing import NDArrays
+from flwr.common import Parameters
+from typing import Optional
 from strategy.bulyan import CustomBulyan
 from strategy.trimmed_mean import CustomTrimmedMean
 from strategy.krum import CustomKrum
@@ -16,7 +15,6 @@ from strategy.baseline_wrappers import (
     BaseFedMetaWrapper, BaseFedPerWrapper, BaseFjordWrapper,
     BaseFlandersWrapper, BaseFedOptWrapper
 )
-import numpy as np
 
 # Import from utils instead of defining here
 from utils import (

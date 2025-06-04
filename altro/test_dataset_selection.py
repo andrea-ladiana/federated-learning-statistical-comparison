@@ -28,7 +28,7 @@ def test_dataset_compatibility():
         ("CIFAR-10", torch.randn(4, 3, 32, 32))     # RGB 32x32
     ]
     
-    print(f"\n🧪 Testing model compatibility:")
+    print("\n🧪 Testing model compatibility:")
     
     for dataset_name, test_input in datasets_to_test:
         try:
@@ -47,7 +47,7 @@ def test_dataset_compatibility():
         except Exception as e:
             print(f"✗ {dataset_name:12} | Error: {e}")
     
-    print(f"\n🔧 Testing transforms:")
+    print("\n🔧 Testing transforms:")
     
     # Test trasformazioni
     transforms_to_test = [
@@ -60,12 +60,12 @@ def test_dataset_compatibility():
         for i, step in enumerate(transform.transforms):
             print(f"  {i+1}. {step}")
     
-    print(f"\n📊 Summary:")
-    print(f"  • MiniResNet20 automatically adapts input dimensions")
-    print(f"  • Converts grayscale (1 channel) → RGB (3 channels)")
-    print(f"  • Resizes 28×28 → 32×32 via bilinear interpolation")
-    print(f"  • Universal architecture for MNIST, Fashion-MNIST, CIFAR-10")
-    print(f"  • Output: 10 classes for all datasets")
+    print("\n📊 Summary:")
+    print("  • MiniResNet20 automatically adapts input dimensions")
+    print("  • Converts grayscale (1 channel) → RGB (3 channels)")
+    print("  • Resizes 28×28 → 32×32 via bilinear interpolation")
+    print("  • Universal architecture for MNIST, Fashion-MNIST, CIFAR-10")
+    print("  • Output: 10 classes for all datasets")
     
     print("=" * 60)
     print("TEST COMPLETATO! ✨")
@@ -73,7 +73,7 @@ def test_dataset_compatibility():
 
 def test_actual_datasets():
     """Test caricamento dei dataset reali."""
-    print(f"\n🔍 Testing actual dataset loading:")
+    print("\n🔍 Testing actual dataset loading:")
     
     # Transform per ogni dataset
     transform_common = get_transform_common()

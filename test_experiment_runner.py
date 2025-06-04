@@ -122,10 +122,10 @@ def main():
         print("ALL TESTS COMPLETED SUCCESSFULLY!")
         print("=" * 60)
         
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"- Total configurations available: {len(configs)}")
         print(f"- Test configurations created: {len(test_configs)}")
-        print(f"- Ready for full experiment execution")
+        print("- Ready for full experiment execution")
         
     except Exception as e:
         print(f"\nTEST FAILED: {e}")

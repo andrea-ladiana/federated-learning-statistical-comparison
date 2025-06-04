@@ -69,7 +69,7 @@ class BaseDashaWrapper(FedAvg, BaseStrategy):
         self.compressor_coords = compressor_coords
         self.strategy_name = "dasha"
         
-        logger.info(f"✅ Initialized DASHA strategy wrapper")
+        logger.info("✅ Initialized DASHA strategy wrapper")
         logger.info(f"   Step size: {step_size}")
         logger.info(f"   Compressor coordinates: {compressor_coords}")
 
@@ -124,7 +124,7 @@ class BaseDepthFLWrapper(FedAvg, BaseStrategy):
         self.alpha = alpha
         self.strategy_name = "depthfl"
         
-        logger.info(f"✅ Initialized DepthFL strategy wrapper")
+        logger.info("✅ Initialized DepthFL strategy wrapper")
         logger.info(f"   Knowledge distillation: {use_knowledge_distillation}")
         logger.info(f"   FedDyn regularization: {use_feddyn}")
         logger.info(f"   Alpha parameter: {alpha}")
@@ -177,7 +177,7 @@ class BaseHeteroFLWrapper(FedAvg, BaseStrategy):
         self.use_scaler = use_scaler
         self.strategy_name = "heterofl"
         
-        logger.info(f"✅ Initialized HeteroFL strategy wrapper")
+        logger.info("✅ Initialized HeteroFL strategy wrapper")
         logger.info(f"   Global model rate: {global_model_rate}")
         logger.info(f"   Use scaler module: {use_scaler}")
 
@@ -235,7 +235,7 @@ class BaseFedMetaWrapper(FedAvg, BaseStrategy):
         self.weight_decay = weight_decay
         self.strategy_name = "fedmeta"
         
-        logger.info(f"✅ Initialized FedMeta strategy wrapper")
+        logger.info("✅ Initialized FedMeta strategy wrapper")
         logger.info(f"   Alpha parameter: {alpha}")
         logger.info(f"   Beta parameter: {beta}")
         logger.info(f"   Algorithm: {algorithm}")
@@ -289,7 +289,7 @@ class BaseFedPerWrapper(FedAvg, BaseStrategy):
         self.personalization_layers = personalization_layers
         self.strategy_name = "fedper"
         
-        logger.info(f"✅ Initialized FedPer strategy wrapper")
+        logger.info("✅ Initialized FedPer strategy wrapper")
         logger.info(f"   Algorithm: {algorithm}")
         logger.info(f"   Personalization layers: {personalization_layers}")
 
@@ -344,7 +344,7 @@ class BaseFjordWrapper(FedAvg, BaseStrategy):
         self.compression_ratio = compression_ratio
         self.strategy_name = "fjord"
         
-        logger.info(f"✅ Initialized FjORD strategy wrapper")
+        logger.info("✅ Initialized FjORD strategy wrapper")
         logger.info(f"   P max: {p_max}")
         logger.info(f"   Adaptive p: {adapt_p}")
         logger.info(f"   Compression ratio: {compression_ratio}")
@@ -406,7 +406,7 @@ class BaseFlandersWrapper(FedAvg, BaseStrategy):
         self.maxiter = maxiter
         self.strategy_name = "flanders"
         
-        logger.info(f"✅ Initialized FLANDERS strategy wrapper")
+        logger.info("✅ Initialized FLANDERS strategy wrapper")
         logger.info(f"   Clients to keep: {num_clients_to_keep}")
         logger.info(f"   Window size: {window}")
         logger.info(f"   Alpha: {alpha}")
@@ -467,7 +467,7 @@ class BaseFedOptWrapper(FedAvg, BaseStrategy):
         self.tau = tau
         self.strategy_name = "fedopt"
         
-        logger.info(f"✅ Initialized FedOpt strategy wrapper")
+        logger.info("✅ Initialized FedOpt strategy wrapper")
         logger.info(f"   Optimizer: {optimizer}")
         logger.info(f"   Server learning rate: {server_learning_rate}")
         logger.info(f"   Server momentum: {server_momentum}")
