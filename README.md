@@ -177,7 +177,8 @@ python run_experiments.py --runner enhanced --test-mode --num-runs 2
 Run federated learning with adversarial attacks:
 
 ```bash
-python experiment_runners/run_with_attacks.py --strategy fedavg --model CNNNet --dataset cifar10 --attack_type label_flipping --malicious_clients 2
+python experiment_runners/run_with_attacks.py --strategy fedavg --dataset CIFAR10 \
+    --attack labelflip --labelflip-fraction 0.2 --flip-prob 0.8
 ```
 
 ### Setup and Verification
@@ -630,46 +631,44 @@ python run_with_attacks.py [OPTIONS]
 #### Attack Parameters
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `--attack_type` | str | `None` | Type of attack to simulate |
-| `--malicious_clients` | int | `0` | Number of malicious clients |
-| `--attack_intensity` | float | `0.5` | Attack strength/intensity |
-| `--attack_rounds` | list | `[]` | Specific rounds for attacks |
+| `--attack` | str | `none` | Attack to enable (`noise`, `missed`, `failure`, `asymmetry`, `labelflip`, `gradflip`, `all`) |
 
 #### Attack-Specific Parameters
 
 **Label Flipping:**
 ```bash
---flip_probability 0.1      # Probability of label flip
---target_class 7            # Target class for flipping
+--labelflip-fraction 0.2    # Fraction of clients attacked
+--flip-prob 0.8             # Probability of flipping a label
+--source-class 2            # Optional fixed source class
+--target-class 7            # Optional fixed target class
 ```
 
 **Gradient Flipping:**
 ```bash
---flip_factor -1.0          # Gradient multiplication factor
+--gradflip-fraction 0.2     # Fraction of clients attacked
+--gradflip-intensity 1.0    # Intensity of gradient inversion
 ```
 
 **Noise Injection:**
 ```bash
---noise_std 0.1             # Standard deviation of Gaussian noise
---noise_type gaussian       # Type of noise (gaussian, uniform)
+--noise-std 0.1             # Standard deviation of injected noise
+--noise-fraction 0.3        # Fraction of clients attacked
 ```
 
 **Data Asymmetry:**
 ```bash
---asymmetry_factor 0.8      # Level of data asymmetry
---missing_classes [0,1,2]   # Classes to exclude from clients
+--asymmetry-min 0.5         # Minimum data factor
+--asymmetry-max 3.0         # Maximum data factor
 ```
 
 **Client Failure:**
 ```bash
---failure_probability 0.1   # Probability of client failure
---failure_type random       # Type of failure (random, targeted)
+--failure-prob 0.2          # Probability a client fails in a round
 ```
 
 **Missed Class:**
 ```bash
---excluded_classes [9]      # Classes to exclude from specific clients
---affected_clients [0,1]    # Clients affected by missing classes
+--missed-prob 0.3           # Probability a client removes one class
 ```
 
 ## Aggregation Strategies
@@ -908,70 +907,68 @@ The framework includes 6 different attack types for security research:
 ### 1. **Label Flipping Attack**
 - **File:** `attacks/label_flipping.py`
 - **Description:** Malicious clients flip labels of training data
-- **Usage:** `--attack_type label_flipping --flip_probability 0.1 --target_class 7`
+- **Usage:** `--attack labelflip --labelflip-fraction 0.2 --flip-prob 0.8`
 - **Parameters:**
-  - `flip_probability`: Probability of flipping a label (0.0-1.0)
-  - `target_class`: Target class for directed attacks (optional)
+  - `labelflip_fraction`: Fraction of clients to attack
+  - `flip_prob`: Probability of flipping each label
+  - `source_class`/`target_class`: Optional fixed classes
 - **Impact:** Degrades model accuracy on specific classes
 - **Detection:** Monitor per-class accuracy degradation
 
 ### 2. **Gradient Flipping Attack**
 - **File:** `attacks/gradient_flipping.py`
 - **Description:** Malicious clients send inverted gradients
-- **Usage:** `--attack_type gradient_flipping --flip_factor -1.0`
+- **Usage:** `--attack gradflip --gradflip-fraction 0.2 --gradflip-intensity 1.0`
 - **Parameters:**
-  - `flip_factor`: Multiplication factor for gradients (negative values flip)
+  - `gradflip_fraction`: Fraction of clients to attack
+  - `gradflip_intensity`: Multiplication factor for gradients
 - **Impact:** Severely disrupts convergence
 - **Detection:** Monitor gradient norms and directions
 
 ### 3. **Noise Injection Attack**
 - **File:** `attacks/noise_injection.py`
 - **Description:** Adds random noise to client updates
-- **Usage:** `--attack_type noise_injection --noise_std 0.1 --noise_type gaussian`
+- **Usage:** `--attack noise --noise-std 0.1 --noise-fraction 0.3`
 - **Parameters:**
   - `noise_std`: Standard deviation of noise
-  - `noise_type`: Type of noise (gaussian, uniform, laplacian)
+  - `noise_fraction`: Fraction of clients to attack
 - **Impact:** Slows convergence, reduces final accuracy
 - **Detection:** Statistical analysis of update distributions
 
 ### 4. **Data Asymmetry Attack**
 - **File:** `attacks/data_asymmetry.py`
 - **Description:** Creates extreme data heterogeneity
-- **Usage:** `--attack_type data_asymmetry --asymmetry_factor 0.8`
+- **Usage:** `--attack asymmetry --asymmetry-min 0.5 --asymmetry-max 3.0`
 - **Parameters:**
-  - `asymmetry_factor`: Level of data skewness (0.0-1.0)
-  - `missing_classes`: Specific classes to exclude
+  - `asymmetry_min`: Minimum factor for client data size
+  - `asymmetry_max`: Maximum factor for client data size
 - **Impact:** Biases global model toward specific classes
 - **Detection:** Monitor class distribution across clients
 
 ### 5. **Client Failure Attack**
 - **File:** `attacks/client_failure.py`
 - **Description:** Simulates client dropouts and failures
-- **Usage:** `--attack_type client_failure --failure_probability 0.1 --failure_type random`
+- **Usage:** `--attack failure --failure-prob 0.2`
 - **Parameters:**
-  - `failure_probability`: Probability of client failure per round
-  - `failure_type`: Pattern of failures (random, targeted, gradual)
+  - `failure_prob`: Probability of client failure per round
 - **Impact:** Reduces available data for training
 - **Detection:** Monitor client participation rates
 
 ### 6. **Missed Class Attack**
 - **File:** `attacks/missed_class.py`
 - **Description:** Specific clients never see certain classes
-- **Usage:** `--attack_type missed_class --excluded_classes [9] --affected_clients [0,1]`
+- **Usage:** `--attack missed --missed-prob 0.3`
 - **Parameters:**
-  - `excluded_classes`: List of classes to exclude
-  - `affected_clients`: List of client IDs to affect
+  - `missed_prob`: Probability a client removes one class
 - **Impact:** Creates systematic bias in learning
 - **Detection:** Analyze per-client class distributions
 
 ### Attack Configuration
 
-Attacks are configured through the `attack_config.py` file, which provides:
-
-- **Attack Factory:** Centralized attack instantiation
-- **Parameter Validation:** Ensures valid attack parameters
-- **Attack Scheduling:** Controls when attacks occur
-- **Intensity Control:** Manages attack strength over time
+Attacks are configured through the `attack_config.py` file which collects all
+parameters in one place.  Each attack can be enabled or disabled and its
+probabilities or fractions tuned.  The file also stores state across rounds
+(e.g. failure history and chosen label pairs).
 
 ### Defense Evaluation
 
@@ -1199,7 +1196,7 @@ Use the built-in parameter sweeps:
 python server.py --strategy fedavg --learning_rate 0.001,0.01,0.1
 
 # Test multiple strategies
-python run_with_attacks.py --strategy fedavg,fedprox,scaffold --attack_type label_flipping
+python run_with_attacks.py --strategy fedavg,fedprox,scaffold --attack labelflip
 ```
 
 ### Logging and Monitoring
