@@ -14,16 +14,16 @@ def count_parameters(model):
 def print_model_parameters(model):
     """Stampa i parametri del modello, suddivisi per layer e con totale"""
     total_params = 0
-    print(f"\n{'=' * 50}")
-    print(f"DETTAGLIO PARAMETRI DEL MODELLO:")
-    print(f"{'-' * 50}")
+    print("\n" + "=" * 50)
+    print("DETTAGLIO PARAMETRI DEL MODELLO:")
+    print("-" * 50)
     for name, parameter in model.named_parameters():
         param_count = parameter.numel()
         total_params += param_count
         print(f"{name}: {param_count:,} parametri")
-    print(f"{'-' * 50}")
+    print("-" * 50)
     print(f"TOTALE: {total_params:,} parametri")
-    print(f"{'=' * 50}\n")
+    print("=" * 50 + "\n")
     return total_params
 
 # 1) Definizione modello identico al client - Shallow Network

@@ -723,7 +723,7 @@ v4/
 ├── experiment_runner.py            # Systematic experiment automation
 ├── results_analyzer.py             # Results analysis and visualization
 ├── strategies.py                   # Strategy factory and configuration
-├── models.py                       # Model imports (backward compatibility)
+├── models/                         # Neural network model implementations
 ├── attack_config.py                # Attack configuration and factory
 ├── utils.py                        # Utility functions and helpers
 ├── fl_attacks.py                   # Attack implementation utilities

@@ -26,16 +26,16 @@ def main():
     mnist_input = torch.randn(2, 1, 28, 28)  # MNIST-like input
     cifar_input = torch.randn(2, 3, 32, 32)  # CIFAR-like input
     
-    print(f"\n📁 Models directory structure created successfully!")
-    print(f"   ├── __init__.py")
-    print(f"   ├── simple.py          (Net)")
-    print(f"   ├── cnn.py             (CNNNet)")
-    print(f"   ├── optaegv3.py        (OptAEGV3, TinyMNIST)")
-    print(f"   ├── minimal_cnn.py     (DepthwiseSeparableConv, MinimalCNN)")
-    print(f"   ├── miniresnet20.py    (MiniResNet20, ResNet20)")
-    print(f"   └── README.md")
+    print("\n📁 Models directory structure created successfully!")
+    print("   ├── __init__.py")
+    print("   ├── simple.py          (Net)")
+    print("   ├── cnn.py             (CNNNet)")
+    print("   ├── optaegv3.py        (OptAEGV3, TinyMNIST)")
+    print("   ├── minimal_cnn.py     (DepthwiseSeparableConv, MinimalCNN)")
+    print("   ├── miniresnet20.py    (MiniResNet20, ResNet20)")
+    print("   └── README.md")
     
-    print(f"\n🧪 Testing MNIST-compatible models:")
+    print("\n🧪 Testing MNIST-compatible models:")
     success_count = 0
     
     # Test MNIST models
@@ -51,7 +51,7 @@ def main():
         if test_model(model, name, mnist_input):
             success_count += 1
     
-    print(f"\n🧪 Testing utility components:")
+    print("\n🧪 Testing utility components:")
     # Test utility components
     opt_activation = OptAEGV3()
     dsconv = DepthwiseSeparableConv(3, 64)
@@ -74,30 +74,30 @@ def main():
     
     print(f"\n📊 Results: {success_count}/7 components working correctly")
     
-    print(f"\n✅ Backward compatibility test:")
+    print("\n✅ Backward compatibility test:")
     try:
         # Test that old import style still works
         import models
         old_style_net = models.Net()
-        print(f"✓ Original models.py import style still works!")
+        print("✓ Original models.py import style still works!")
     except Exception as e:
         print(f"✗ Backward compatibility issue: {e}")
     
-    print(f"\n🎯 New import options:")
-    print(f"   # Option 1: Import from models package")
-    print(f"   from models import Net, CNNNet, TinyMNIST, MiniResNet20")
-    print(f"   ")
-    print(f"   # Option 2: Import from specific modules")
-    print(f"   from models.simple import Net")
-    print(f"   from models.cnn import CNNNet") 
-    print(f"   from models.optaegv3 import TinyMNIST")
-    print(f"   from models.miniresnet20 import MiniResNet20")
-    print(f"   ")
-    print(f"   # Option 3: Backward compatible (original style)")
-    print(f"   import models")
-    print(f"   net = models.Net()")
+    print("\n🎯 New import options:")
+    print("   # Option 1: Import from models package")
+    print("   from models import Net, CNNNet, TinyMNIST, MiniResNet20")
+    print("   ")
+    print("   # Option 2: Import from specific modules")
+    print("   from models.simple import Net")
+    print("   from models.cnn import CNNNet")
+    print("   from models.optaegv3 import TinyMNIST")
+    print("   from models.miniresnet20 import MiniResNet20")
+    print("   ")
+    print("   # Option 3: Backward compatible (original style)")
+    print("   import models")
+    print("   net = models.Net()")
     
-    print(f"\n" + "=" * 60)
+    print("\n" + "=" * 60)
     print("REORGANIZATION COMPLETE! ✨")
     print("=" * 60)
 

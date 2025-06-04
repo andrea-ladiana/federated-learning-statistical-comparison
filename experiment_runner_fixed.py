@@ -160,10 +160,12 @@ class MetricsCollector:
 class ExperimentRunner:
     """Gestore principale degli esperimenti."""
     
-    def __init__(self, base_dir: str = ".", results_dir: str = "experiment_results"):
+    def __init__(self, base_dir: str = ".", results_dir: str = "experiment_results", process_timeout: int = 600):
         self.base_dir = Path(base_dir)
         self.results_dir = Path(results_dir)
         self.results_dir.mkdir(exist_ok=True)
+
+        self.process_timeout = process_timeout
         
         # DataFrame per raccogliere tutti i risultati
         self.results_df = pd.DataFrame(columns=[
@@ -336,7 +338,7 @@ class ExperimentRunner:
                 
                 # Attendi che il processo finisca
                 logger.info("Waiting for process to complete...")
-                return_code = process.wait(timeout=600)  # 10 minuti timeout
+                return_code = process.wait(timeout=self.process_timeout)
                 
                 logger.info(f"Process completed with return code: {return_code}")
                 logger.info(f"Total output lines processed: {line_count}")
@@ -354,7 +356,9 @@ class ExperimentRunner:
                     return False
                     
             except subprocess.TimeoutExpired:
-                logger.error(f"Experiment {experiment_id}, run {run_id} timed out after 10 minutes")
+                logger.error(
+                    f"Experiment {experiment_id}, run {run_id} timed out after {self.process_timeout} seconds"
+                )
                 process.kill()
                 # Log ultimi 10 righe di output per debug
                 if output_lines:

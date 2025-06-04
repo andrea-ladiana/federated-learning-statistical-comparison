@@ -3,7 +3,6 @@ Script per installare le dipendenze necessarie per il progetto FL.
 """
 import sys
 import subprocess
-import os
 
 def main():
     print("Installazione delle dipendenze necessarie...")

@@ -134,7 +134,7 @@ class FedNova(FedAvg):
         else:
             # If all factors are zero, use uniform weights
             norm_factors = [1.0 / len(weights_results)] * len(weights_results)
-            print(f"[Server] Using uniform factors due to zero normalization:")
+            print("[Server] Using uniform factors due to zero normalization:")
             for i, factor in enumerate(norm_factors):
                 print(f"[Server]   Client {i}: uniform_factor={factor:.6f}")
         

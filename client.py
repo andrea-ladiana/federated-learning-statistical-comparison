@@ -73,9 +73,10 @@ def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
             num_train_examples = max(50, min(5000, num_train_examples))  # Limite min/max
         
         # Prepared indices for a client
-        train_indices = list(range(client_id * num_train_examples, 
-                               (client_id + 1) * num_train_examples))
-        train_indices = [i % len(trainset) for i in train_indices]  # Wrap around if needed
+        dataset_size = len(trainset)
+        replace = dataset_size < num_train_examples
+        rng = np.random.default_rng(seed=client_id)
+        train_indices = rng.choice(dataset_size, num_train_examples, replace=replace).tolist()
         
         # 2. Missed Class (rimuove esempi di una certa classe)
         if MISSED_CLASS["enabled"]:
@@ -354,6 +355,7 @@ if __name__ == "__main__":
     seed_value = int(args.cid) + 42
     random.seed(seed_value)
     np.random.seed(seed_value)
+    torch.manual_seed(seed_value)
     print(f"[Client {args.cid}] Inizializzato con seed {seed_value}")
     
     client = LoggingClient(cid=args.cid, dataset_name=args.dataset)

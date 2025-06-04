@@ -12,6 +12,7 @@ Raccoglie i risultati in formato long-form pandas per l'analisi successiva.
 import pandas as pd
 import numpy as np
 import subprocess
+from collections import deque
 import time
 import json
 import os
@@ -138,10 +139,12 @@ class MetricsCollector:
 class ExperimentRunner:
     """Gestore principale degli esperimenti."""
     
-    def __init__(self, base_dir: str = ".", results_dir: str = "experiment_results"):
+    def __init__(self, base_dir: str = ".", results_dir: str = "experiment_results", process_timeout: int = 600):
         self.base_dir = Path(base_dir)
         self.results_dir = Path(results_dir)
         self.results_dir.mkdir(exist_ok=True)
+
+        self.process_timeout = process_timeout
         
         # DataFrame per raccogliere tutti i risultati
         self.results_df = pd.DataFrame(columns=[
@@ -174,11 +177,15 @@ class ExperimentRunner:
         """Termina tutti i processi Flower in esecuzione."""
         logger.info("Scanning for existing Flower processes...")
         killed_count = 0
-        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
             try:
                 cmdline = ' '.join(proc.info['cmdline']) if proc.info['cmdline'] else ''
-                if ('python' in proc.info['name'].lower() and 
-                    ('server.py' in cmdline or 'client.py' in cmdline or 'run_with_attacks.py' in cmdline)):
+                cwd = proc.info.get('cwd')
+                in_base_dir = cwd and Path(cwd).resolve() == self.base_dir.resolve()
+                if (
+                    in_base_dir and 'python' in proc.info['name'].lower() and
+                    ('server.py' in cmdline or 'client.py' in cmdline or 'run_with_attacks.py' in cmdline)
+                ):
                     logger.info(f"Terminating process {proc.info['pid']}: {cmdline}")
                     proc.terminate()
                     try:
@@ -278,8 +285,8 @@ class ExperimentRunner:
             
             logger.info(f"Process started with PID: {process.pid}")
             
-            # Raccogli l'output in tempo reale
-            output_lines = []
+            # Raccogli l'output in tempo reale (manteniamo solo le ultime 1000 righe)
+            output_lines = deque(maxlen=1000)
             line_count = 0
             last_log_time = time.time()
             last_progress_report = time.time()
@@ -318,7 +325,7 @@ class ExperimentRunner:
                 
                 # Attendi che il processo finisca
                 logger.info("Waiting for process to complete...")
-                return_code = process.wait(timeout=600)  # 10 minuti timeout
+                return_code = process.wait(timeout=self.process_timeout)
                 
                 logger.info(f"Process completed with return code: {return_code}")
                 logger.info(f"Total output lines processed: {line_count}")
@@ -336,7 +343,9 @@ class ExperimentRunner:
                     return False
                     
             except subprocess.TimeoutExpired:
-                logger.error(f"Experiment {experiment_id}, run {run_id} timed out after 10 minutes")
+                logger.error(
+                    f"Experiment {experiment_id}, run {run_id} timed out after {self.process_timeout} seconds"
+                )
                 process.kill()
                 # Log ultimi 10 righe di output per debug
                 if output_lines:
