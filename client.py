@@ -16,6 +16,7 @@ import fl_attacks
 from attack_config import *
 import random
 import numpy as np
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 # 1) definizione del modello locale
 # - I modelli sono ora importati dal modulo models.py
@@ -190,6 +191,7 @@ class LoggingClient(fl.client.NumPyClient):
         criterion = nn.CrossEntropyLoss()
         self.model.train()
         total_loss, correct, total = 0.0, 0, 0
+        y_true, y_pred = [], []
         for batch_idx, (data, target) in enumerate(self.trainloader, 1):
             # 1. Noise Injection Attack
             if ENABLE_ATTACKS and NOISE_INJECTION["enabled"]:
@@ -214,18 +216,32 @@ class LoggingClient(fl.client.NumPyClient):
             preds = output.argmax(dim=1)
             correct += preds.eq(target).sum().item()
             total += target.size(0)
+            y_true.extend(target.cpu().numpy())
+            y_pred.extend(preds.cpu().numpy())
             if batch_idx % 10 == 0:
                 print(f"[Client {self.cid}] Batch {batch_idx}/{len(self.trainloader)} | "
                       f"loss={(total_loss/total):.4f}, acc={(correct/total):.4f}")
 
         avg_loss = total_loss / total
         accuracy = correct / total
-        print(f"[Client {self.cid}] fit complete | avg_loss={avg_loss:.4f}, accuracy={accuracy:.4f}")
+        precision = precision_score(y_true, y_pred, average="macro", zero_division=0)
+        recall = recall_score(y_true, y_pred, average="macro", zero_division=0)
+        f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+        print(
+            f"[Client {self.cid}] fit complete | avg_loss={avg_loss:.4f}, accuracy={accuracy:.4f}, "
+            f"precision={precision:.4f}, recall={recall:.4f}, f1={f1:.4f}"
+        )
 
         # Invio parametri aggiornati
         updated_params = [val.cpu().numpy() for _, val in self.model.state_dict().items()]
         print(f"[Client {self.cid}] Uploading updated parameters")
-        return updated_params, total, {"loss": avg_loss, "accuracy": accuracy}
+        return updated_params, total, {
+            "loss": avg_loss,
+            "accuracy": accuracy,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+        }
 
     def evaluate(self, parameters, config):
         print(f"[Client {self.cid}] evaluate | Received parameters, config: {config}")
@@ -253,6 +269,7 @@ class LoggingClient(fl.client.NumPyClient):
         self.model.eval()
         criterion = nn.CrossEntropyLoss()
         total_loss, correct, total = 0.0, 0, 0
+        y_true, y_pred = [], []
         with torch.no_grad():
             for batch_idx, (data, target) in enumerate(self.testloader, 1):
                 output = self.model(data)
@@ -261,15 +278,29 @@ class LoggingClient(fl.client.NumPyClient):
                 preds = output.argmax(dim=1)
                 correct += preds.eq(target).sum().item()
                 total += target.size(0)
+                y_true.extend(target.cpu().numpy())
+                y_pred.extend(preds.cpu().numpy())
                 if batch_idx % 5 == 0:
                     print(f"[Client {self.cid}] Eval batch {batch_idx}/{len(self.testloader)} | "
                           f"loss={(total_loss/total):.4f}, acc={(correct/total):.4f}")
 
         avg_loss = total_loss / total
         accuracy = correct / total
-        print(f"[Client {self.cid}] evaluate complete | avg_loss={avg_loss:.4f}, accuracy={accuracy:.4f}")
+        precision = precision_score(y_true, y_pred, average="macro", zero_division=0)
+        recall = recall_score(y_true, y_pred, average="macro", zero_division=0)
+        f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+        print(
+            f"[Client {self.cid}] evaluate complete | avg_loss={avg_loss:.4f}, accuracy={accuracy:.4f}, "
+            f"precision={precision:.4f}, recall={recall:.4f}, f1={f1:.4f}"
+        )
 
-        return avg_loss, total, {"loss": avg_loss, "accuracy": accuracy}
+        return avg_loss, total, {
+            "loss": avg_loss,
+            "accuracy": accuracy,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+        }
 
 
 # main
