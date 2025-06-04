@@ -742,14 +742,14 @@ The framework implements 19 different federated learning strategies:
 
 Integrated from the Flower ecosystem:
 
-- **FedOpt:** Federated optimization framework
-- **FedYogi:** Adaptive federated optimization with Yogi
-- **QFedAvg:** Fair federated learning
-- **FaultTolerantFedAvg:** Fault-tolerant federated averaging
-- **FastAndSlow:** Mixed-speed client handling
-- **FedTrimmedAvg:** Trimmed averaging implementation
-- **FedMedian:** Median-based aggregation
-- **DPFedAvgFixed:** Differential privacy with fixed noise
+- **Dasha:** Gradient compression for efficient communication
+- **DepthFL:** Depth-wise training for heterogeneous clients
+- **HeteroFL:** Scales model size to client capabilities
+- **FedMeta:** Meta-learning for rapid adaptation
+- **FedPer:** Personalized layers for client-specific models
+- **FjORD:** Adaptive width and compression
+- **Flanders:** MAR-based detection of faulty updates
+- **FedOpt:** Server optimizer variants (Adam, Yogi, Adagrad)
 
 ### Strategy Selection Guide
 
@@ -760,7 +760,7 @@ Integrated from the Flower ecosystem:
 | **Fast Convergence** | FedAdam, FedAvgM | Adaptive optimization |
 | **Byzantine Attacks** | Krum, Bulyan, TrimmedMean | Robust to malicious clients |
 | **Communication Efficiency** | FedNova | Fewer communication rounds |
-| **Privacy-Preserving** | DPFedAvgFixed | Differential privacy |
+| **Personalization** | FedPer | Client-specific models |
 
 ## Neural Network Models
 
