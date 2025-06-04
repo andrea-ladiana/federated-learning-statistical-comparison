@@ -11,6 +11,7 @@ import unittest
 import time
 from pathlib import Path
 import argparse
+import importlib
 
 # Add the project root to the path
 project_root = Path(__file__).parent.parent
@@ -149,11 +150,16 @@ def run_specific_test(test_name):
             # Test method specified
             suite.addTest(loader.loadTestsFromName(test_name))
         else:
-            # Test class specified - try to find it
-            from tests.test_enhanced_experiment_runner import *
-            from tests.test_checkpoint_system import *
-            
-            test_class = globals().get(test_name)
+            # Test class specified - try to find it dynamically
+            enhanced_module = importlib.import_module(
+                'tests.test_enhanced_experiment_runner')
+            checkpoint_module = importlib.import_module(
+                'tests.test_checkpoint_system')
+
+            test_class = getattr(enhanced_module, test_name, None)
+            if test_class is None:
+                test_class = getattr(checkpoint_module, test_name, None)
+
             if test_class:
                 tests = loader.loadTestsFromTestCase(test_class)
                 suite.addTests(tests)

@@ -67,6 +67,23 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Custom exception classes
+# ---------------------------------------------------------------------------
+
+class ExperimentValidationError(ValueError):
+    """Raised when an experiment configuration is invalid."""
+
+
+class ResourceError(RuntimeError):
+    """Raised when a required system resource is unavailable."""
+
+
+class CheckpointError(RuntimeError):
+    """Raised when checkpoint operations fail."""
+
+
+
 @dataclass
 class SystemConfig:
     """Configurazione del sistema."""
@@ -316,7 +333,7 @@ class PortManager:
         """Acquisisce una porta disponibile."""
         with self.lock:
             if not self.available_ports:
-                raise RuntimeError("No available ports")
+                raise ResourceError("No available ports")
             port = self.available_ports.pop(0)
             self.used_ports.add(port)
             logger.debug(f"Acquired port {port}")
@@ -351,11 +368,39 @@ class PortManager:
 
 class EnhancedExperimentConfig(BaseExperimentConfig):
     """Configurazione di esperimento migliorata con validazione."""
-    
+
     def __init__(self, *args, **kwargs):
         # Initialize with validation
         super().__init__(*args, **kwargs)
         self._validate_all()
+
+    # ------------------------------------------------------------------
+    # Override validation methods to raise ExperimentValidationError
+    # ------------------------------------------------------------------
+
+    def _validate_strategy(self, strategy: str) -> str:
+        try:
+            return super()._validate_strategy(strategy)
+        except ValueError as e:
+            raise ExperimentValidationError(str(e))
+
+    def _validate_attack(self, attack: str) -> str:
+        try:
+            return super()._validate_attack(attack)
+        except ValueError as e:
+            raise ExperimentValidationError(str(e))
+
+    def _validate_dataset(self, dataset: str) -> str:
+        try:
+            return super()._validate_dataset(dataset)
+        except ValueError as e:
+            raise ExperimentValidationError(str(e))
+
+    def _validate_positive_int(self, value: int, param_name: str) -> int:
+        try:
+            return super()._validate_positive_int(value, param_name)
+        except ValueError as e:
+            raise ExperimentValidationError(str(e))
     
     def _validate_all(self):
         """Valida tutti i parametri della configurazione."""
