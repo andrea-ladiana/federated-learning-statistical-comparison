@@ -83,7 +83,8 @@ def create_strategy(
         server_learning_rate = kwargs.get("server_learning_rate", 0.1)
         return CustomFedAdam(**common_kwargs, server_learning_rate=server_learning_rate)
     elif strategy_name == "fedatt":
-        return CustomFedAtt(**common_kwargs)    elif strategy_name == "krum":
+        return CustomFedAtt(**common_kwargs)
+    elif strategy_name == "krum":
         # Parametro specifico per Krum
         num_byzantine = kwargs.get("num_byzantine", 0)
         return CustomKrum(**common_kwargs, num_byzantine=num_byzantine)
