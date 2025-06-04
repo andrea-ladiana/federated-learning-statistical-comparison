@@ -532,7 +532,7 @@ experiment_results/
 - `run`: Run number (for statistical analysis)
 - `client_id`: Client identifier (-1 for server metrics)
 - `round`: Federated learning round
-- `metric`: Type of metric (loss, accuracy, eval_loss, eval_accuracy, server_loss, server_accuracy)
+- `metric`: Type of metric (loss, accuracy, precision, recall, f1, eval_loss, eval_accuracy, server_loss, server_accuracy)
 - `value`: Metric value
 
 ### Prerequisites Check
@@ -1281,8 +1281,8 @@ analyzer = ResultsAnalyzer("experiment_results/final_results_20250529_203531.csv
 summary = analyzer.generate_summary()
 print(summary)
 
-# Create performance comparison plots
-analyzer.plot_strategy_comparison(metric="accuracy", save_path="plots/")
+# Create performance comparison plots (metric can be "accuracy", "precision", "recall", or "f1")
+analyzer.plot_strategy_comparison(metric="f1", save_path="plots/")
 
 # Analyze attack effectiveness
 attack_analysis = analyzer.analyze_attack_impact()
@@ -1304,7 +1304,7 @@ Results are stored in long-form pandas DataFrame with the following structure:
 | `run` | Experimental run number | `0`, `1`, `2`, ... |
 | `client_id` | Client identifier | `0-9` (clients), `-1` (server) |
 | `round` | FL round number | `1`, `2`, ..., `10` |
-| `metric` | Metric type | `loss`, `accuracy`, `eval_loss`, `eval_accuracy` |
+| `metric` | Metric type | `loss`, `accuracy`, `precision`, `recall`, `f1`, `eval_loss`, `eval_accuracy` |
 | `value` | Metric value | `0.95`, `1.23`, etc. |
 
 ### Statistical Analysis
@@ -1312,6 +1312,9 @@ Results are stored in long-form pandas DataFrame with the following structure:
 #### Performance Metrics
 
 - **Final Accuracy**: Model accuracy after training completion
+- **Precision**: Macro-averaged precision across classes
+- **Recall**: Macro-averaged recall across classes
+- **F1 Score**: Harmonic mean of precision and recall
 - **Convergence Rate**: Rounds needed to reach target accuracy
 - **Stability**: Variance across multiple runs
 - **Robustness**: Performance degradation under attacks
@@ -1319,7 +1322,7 @@ Results are stored in long-form pandas DataFrame with the following structure:
 #### Attack Effectiveness Metrics
 
 - **Attack Success Rate**: Percentage of successful attacks
-- **Performance Degradation**: Accuracy/loss change due to attacks
+- **Performance Degradation**: Changes in accuracy, loss, precision, recall, and F1 score due to attacks
 - **Recovery Time**: Rounds needed to recover from attacks
 - **Defense Effectiveness**: Robustness of Byzantine-fault tolerant strategies
 
