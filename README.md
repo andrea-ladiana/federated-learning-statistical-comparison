@@ -1371,30 +1371,13 @@ All experimental results include:
 - **Environment information** including library versions
 - **Execution metadata** with timestamps and system information
 
-### Performance Benchmarks
+### Performance Benchmarks *(in progress)*
 
-Based on systematic experiments across all strategies and datasets:
-
-#### Top Performing Strategies (No Attacks)
-
-| Rank | Strategy | MNIST Acc | FMNIST Acc | CIFAR10 Acc | Avg Acc |
-|------|----------|-----------|------------|-------------|---------|
-| 1 | FedAdam | 99.2% | 89.1% | 82.3% | 90.2% |
-| 2 | SCAFFOLD | 99.0% | 88.7% | 81.9% | 89.9% |
-| 3 | FedProx | 98.9% | 88.4% | 81.2% | 89.5% |
-| 4 | FedAvg | 98.7% | 87.9% | 80.1% | 88.9% |
-| 5 | FedNova | 98.6% | 87.6% | 79.8% | 88.7% |
-
-#### Byzantine-Fault Tolerance Rankings
-
-Under coordinated attacks (20% malicious clients):
-
-| Strategy | Label Flip Resilience | Gradient Flip Resilience | Overall Robustness |
-|----------|----------------------|--------------------------|-------------------|
-| Bulyan | 95.2% | 97.8% | ⭐⭐⭐⭐⭐ |
-| Krum | 93.1% | 96.4% | ⭐⭐⭐⭐ |
-| TrimmedMean | 91.8% | 94.2% | ⭐⭐⭐⭐ |
-| FedAvg | 67.3% | 23.1% | ⭐⭐ |
+> **Nota:** al momento non abbiamo ancora completato una campagna di benchmark.
+> I dati presenti nella versione precedente di questa sezione erano esclusivamente
+> esempi dimostrativi e non riflettevano risultati reali.
+> Stiamo lavorando per generare misurazioni attendibili; i benchmark ufficiali
+> verranno pubblicati non appena saranno disponibili.
 
 ### Research Applications
 
