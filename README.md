@@ -19,6 +19,7 @@ A comprehensive federated learning framework built on top of the Flower library,
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Experiment Runner](#experiment-runner)
+- [Enhanced Experiment Runner](#enhanced-experiment-runner)
 - [Command-Line Usage](#command-line-usage)
 - [Aggregation Strategies](#aggregation-strategies)
 - [Neural Network Models](#neural-network-models)
@@ -173,9 +174,196 @@ The experiment runner automatically generates configurations for:
 
 **Datasets:** `MNIST`, `FMNIST`, `CIFAR10`
 
-### Advanced Configuration
+## 🚀 Enhanced Experiment Runner
 
-#### Custom Experiment Setup
+For large-scale research studies that may run for days, we provide an **Enhanced Experiment Runner** (`enhanced_experiment_runner.py`) with advanced checkpoint/resume functionality, parallel execution, and comprehensive monitoring.
+
+### 🔧 Key Enhanced Features
+
+- **🔄 Checkpoint/Resume System**: Automatic state persistence for multi-day experiments
+- **⚡ Parallel Execution**: Thread-based parallel processing with resource management
+- **📊 Real-time Monitoring**: CPU/memory tracking during experiment execution
+- **🛡️ Robust Error Handling**: Intelligent retry system with exponential backoff
+- **📋 Centralized Configuration**: YAML-based configuration management
+- **🔍 Advanced Validation**: Parameter consistency checks and validation
+- **📈 Comprehensive Metrics**: Detailed performance and statistical analysis
+- **🔄 Port Management**: Automatic port allocation for parallel experiments
+
+### 📚 Enhanced System Usage
+
+#### Quick Start with Enhanced Runner
+
+```bash
+# Run extensive experiments with enhanced features
+python run_extensive_experiments.py --num-runs 10 --max-parallel 2
+
+# Resume interrupted experiments automatically
+python run_extensive_experiments.py --resume
+
+# Monitor running experiments in real-time
+python monitor_experiments.py --watch --refresh-interval 30
+```
+
+#### Configuration Management
+
+The enhanced system uses YAML-based configuration (`enhanced_config.yaml`):
+
+```yaml
+system:
+  max_parallel_experiments: 4
+  cpu_threshold: 80.0
+  memory_threshold: 80.0
+  port_range_start: 8080
+  port_range_size: 100
+  
+experiment_defaults:
+  num_rounds: 10
+  num_clients: 10
+  timeout_seconds: 600
+  retry_attempts: 3
+  
+monitoring:
+  metrics_interval: 10.0
+  checkpoint_interval: 60.0
+  progress_report_interval: 300.0
+```
+
+#### Advanced Parallel Execution
+
+```python
+from enhanced_experiment_runner import EnhancedExperimentRunner, EnhancedConfigManager
+
+# Initialize with custom configuration
+config_manager = EnhancedConfigManager("custom_config.yaml")
+runner = EnhancedExperimentRunner(config_manager=config_manager)
+
+# Run experiments with parallel execution
+results = runner.run_experiments_parallel(
+    configs=experiment_configs,
+    num_runs=10,
+    max_workers=4,
+    checkpoint_enabled=True
+)
+```
+
+### 🔄 Checkpoint System
+
+The enhanced checkpoint system provides automatic recovery for long-running experiments:
+
+#### Features
+- **Automatic State Saving**: Progress saved every 60 seconds (configurable)
+- **Granular Recovery**: Resume from exact point of interruption
+- **Failure Tracking**: Comprehensive error logging and retry management
+- **Configuration Validation**: Ensures consistency across resume sessions
+- **Backup Management**: Automatic backup rotation and cleanup
+
+#### Usage
+```bash
+# Start extensive experiments (automatically creates checkpoints)
+python run_extensive_experiments.py --num-runs 50
+
+# If interrupted, resume with:
+python run_extensive_experiments.py --resume
+
+# Check progress without resuming:
+python monitor_experiments.py --detailed --failures
+```
+
+### 📊 Real-time Monitoring
+
+Monitor experiment progress with the built-in monitoring system:
+
+```bash
+# Watch mode with auto-refresh
+python monitor_experiments.py --watch --refresh-interval 10
+
+# Detailed status report
+python monitor_experiments.py --detailed
+
+# Failure analysis
+python monitor_experiments.py --failures
+
+# Backup information
+python monitor_experiments.py --backups
+```
+
+#### Monitoring Output Example
+```
+EXPERIMENT PROGRESS SUMMARY
+============================================================
+Total Experiments: 399
+Completed Experiments: 127
+Remaining Experiments: 272
+
+Total Runs: 3990
+Completed Runs: 1847
+Failed Runs: 23
+Remaining Runs: 2120
+
+Overall Progress: 46.3%
+Progress Bar: [██████████████████░░░░░░░░░░░░░░░░░░░░] 46.3%
+Success Rate: 98.8%
+
+Average time per run: 127.4s
+Estimated completion: 2025-06-05 14:32:18
+Time remaining: 7h 23m 45s
+```
+
+### 🧪 Testing Framework
+
+Comprehensive testing suite for the enhanced system:
+
+```bash
+# Run all tests
+python tests/run_tests.py
+
+# Run specific test types
+python tests/run_tests.py --test-type unit
+python tests/run_tests.py --test-type integration
+python tests/run_tests.py --test-type performance
+
+# Run with coverage
+python tests/run_tests.py --coverage
+```
+
+#### Test Categories
+- **Unit Tests**: Component-level testing for all major classes
+- **Integration Tests**: Checkpoint system and recovery testing
+- **Performance Tests**: Large-scale experiment simulation
+- **Stress Tests**: Resource management under high load
+
+### 🔧 Error Handling & Recovery
+
+The enhanced system includes sophisticated error handling:
+
+#### Retry System
+- **Intelligent Classification**: Automatic failure type detection
+- **Exponential Backoff**: Smart retry timing with configurable delays
+- **Selective Retry**: Only retry recoverable failures
+- **Failure Tracking**: Comprehensive failure history and analysis
+
+#### Error Types
+- `TIMEOUT`: Process timeout (retryable)
+- `RESOURCE_ERROR`: Memory/CPU/Port issues (retryable)
+- `NETWORK_ERROR`: Connection problems (retryable)
+- `PROCESS_ERROR`: Application-level errors (non-retryable)
+- `PERMISSION_ERROR`: Access denied (non-retryable)
+
+### 📈 Performance Optimization
+
+#### Resource Management
+- **CPU Monitoring**: Real-time CPU usage tracking with thresholds
+- **Memory Tracking**: Automatic memory monitoring and alerts
+- **Port Management**: Dynamic port allocation for parallel experiments
+- **Process Cleanup**: Automatic cleanup of orphaned processes
+
+#### Parallel Execution
+- **Thread Pool**: Efficient thread-based parallel processing
+- **Resource Allocation**: Smart resource distribution across experiments
+- **Load Balancing**: Automatic load balancing for optimal performance
+- **Scalability**: Support for large-scale multi-day experiments
+
+### Advanced Configuration
 ```python
 from experiment_runner import ExperimentRunner, ExperimentConfig
 

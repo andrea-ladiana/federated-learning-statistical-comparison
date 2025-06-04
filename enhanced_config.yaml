@@ -1,0 +1,57 @@
+# Enhanced Experiment Runner Configuration
+# This file configures the behavior of the enhanced experiment runner
+
+system:
+  # Maximum number of retry attempts for failed experiments
+  max_retries: 3
+  
+  # Base delay between retries (in seconds)
+  retry_delay: 5
+  
+  # Timeout for individual experiment processes (in seconds)
+  process_timeout: 900  # 15 minutes
+  
+  # Base port for Flower communication
+  port: 8080
+  
+  # Logging level (DEBUG, INFO, WARNING, ERROR)
+  log_level: "INFO"
+  
+  # Maximum number of parallel experiments (if running in parallel mode)
+  max_parallel_experiments: 1
+  
+  # Enable resource monitoring (CPU, memory usage tracking)
+  resource_monitoring: true
+  
+  # Save checkpoint every N completed experiments
+  checkpoint_interval: 10
+
+defaults:
+  # Default number of federated learning rounds
+  num_rounds: 10
+  
+  # Default number of clients
+  num_clients: 10
+  
+  # Default learning rate
+  learning_rate: 0.01
+  
+  # Default batch size
+  batch_size: 32
+
+# Optional: Override specific experiment parameters
+# experiment_overrides:
+#   fedprox:
+#     strategy_params:
+#       proximal_mu: 0.01
+#   
+#   noise_attack:
+#     attack_params:
+#       noise_std: 0.1
+#       noise_fraction: 0.3
+
+# Optional: Resource limits
+# resource_limits:
+#   max_cpu_percent: 80
+#   max_memory_percent: 70
+#   disk_space_threshold_gb: 10

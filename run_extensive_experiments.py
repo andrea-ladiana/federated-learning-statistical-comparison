@@ -14,12 +14,24 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
 from experiment_runner import ExperimentRunner, ExperimentConfig
+from checkpoint_manager import CheckpointManager
+from retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
+from config_manager import get_config_manager
+from enhanced_experiment_runner import (
+    EnhancedExperimentRunner, 
+    EnhancedExperimentConfig, 
+    EnhancedConfigManager,
+    create_enhanced_configurations
+)
 
 import logging
 import subprocess
+import time
+import psutil
 
+# Enhanced logging with more detailed format
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    format='%(asctime)s - %(levelname)s - %(name)s:%(lineno)d - %(message)s',
                     handlers=[
                         logging.FileHandler('run_extensive_experiments.log'),
                         logging.StreamHandler()
@@ -27,8 +39,12 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 
-class ExtensiveExperimentRunner(ExperimentRunner):
-    """Extension of :class:`ExperimentRunner` that returns process output."""
+class ExtensiveExperimentRunner(EnhancedExperimentRunner):
+    """Extension of :class:`EnhancedExperimentRunner` that returns process output and handles extensive experiments."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.retry_manager = RetryManager(CONSERVATIVE_RETRY)
 
     def run_single_experiment(self, config: ExperimentConfig, run_id: int) -> Tuple[bool, str]:
         """Run a single experiment and capture the output.
@@ -36,6 +52,18 @@ class ExtensiveExperimentRunner(ExperimentRunner):
         Returns a tuple ``(success, output)`` where ``output`` contains the
         entire stdout of the process.
         """
+        experiment_id = config.get_experiment_id()
+        
+        # Usa il retry manager per eseguire l'esperimento
+        return self.retry_manager.execute_with_retry(
+            experiment_id=f"{experiment_id}_run_{run_id}",
+            experiment_func=self._run_single_experiment_internal,
+            config=config,
+            run_id=run_id
+        )
+    
+    def _run_single_experiment_internal(self, config: ExperimentConfig, run_id: int) -> Tuple[bool, str]:
+        """Esecuzione interna dell'esperimento (senza retry)."""
         experiment_id = config.get_experiment_id()
         logger.info(f"Starting experiment {experiment_id}, run {run_id}")
         self.current_round = 0
@@ -79,91 +107,137 @@ class ExtensiveExperimentRunner(ExperimentRunner):
                 success = False
             finally:
                 self.kill_flower_processes()
-                process.stdout.close() if process.stdout else None
+                if process.stdout:
+                    process.stdout.close()
 
             return success, "\n".join(output_lines)
+        except subprocess.TimeoutExpired:
+            error_msg = f"Experiment {experiment_id} timed out after {self.process_timeout}s"
+            logger.error(error_msg)
+            return False, error_msg
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Experiment {experiment_id} failed with return code {e.returncode}: {e.stderr}"
+            logger.error(error_msg)
+            return False, error_msg
+        except FileNotFoundError as e:
+            error_msg = f"Required file not found for experiment {experiment_id}: {e.filename}"
+            logger.error(error_msg)
+            return False, error_msg
+        except PermissionError as e:
+            error_msg = f"Permission denied for experiment {experiment_id}: {e.filename}"
+            logger.error(error_msg)
+            return False, error_msg
         except Exception as exc:  # catch broad exceptions to log them
-            logger.error(f"Experiment {experiment_id} raised an error: {exc}")
-            return False, str(exc)
+            error_msg = f"Unexpected error in experiment {experiment_id}: {exc}"
+            logger.error(error_msg)
+            return False, error_msg
 
 
-def create_extensive_configurations() -> List[ExperimentConfig]:
+def create_extensive_configurations() -> List[EnhancedExperimentConfig]:
     """Create configurations for all combinations with parameter variations."""
-    strategies = [
-        "fedavg", "fedavgm", "fedprox", "fednova", "scaffold", "fedadam",
-        "krum", "trimmedmean", "bulyan",
-        "dasha", "depthfl", "heterofl", "fedmeta", "fedper",
-        "fjord", "flanders", "fedopt",
-    ]
+    config_mgr = get_config_manager()
+    
+    strategies = config_mgr.get_valid_strategies()
+    datasets = config_mgr.get_valid_datasets()
 
-    attack_params: Dict[str, List[Dict[str, Any]]] = {
-        "none": [{}],
-        "noise": [
-            {"noise_std": 0.1, "noise_fraction": 0.3},
-            {"noise_std": 0.5, "noise_fraction": 0.8},
-        ],
-        "missed": [
-            {"missed_prob": 0.3},
-            {"missed_prob": 0.8},
-        ],
-        "failure": [
-            {"failure_prob": 0.3},
-            {"failure_prob": 0.8},
-        ],
-        "asymmetry": [
-            {"asymmetry_min": 0.5, "asymmetry_max": 1.5},
-            {"asymmetry_min": 0.1, "asymmetry_max": 3.0},
-        ],
-        "labelflip": [
-            {"labelflip_fraction": 0.2, "flip_prob": 0.8},
-            {"labelflip_fraction": 0.4, "flip_prob": 0.8},
-        ],
-        "gradflip": [
-            {"gradflip_fraction": 0.2, "gradflip_intensity": 1.0},
-            {"gradflip_fraction": 0.4, "gradflip_intensity": 0.5},
-        ],
-    }
-
-    datasets = ["MNIST", "FMNIST", "CIFAR10"]
-
-    strategy_params = {
-        "fedprox": {"proximal_mu": 0.01},
-        "fedavgm": {"server_momentum": 0.9},
-        "fedadam": {"learning_rate": 0.1},
-        "krum": {"num_byzantine": 2},
-        "trimmedmean": {"beta": 0.1},
-        "bulyan": {"num_byzantine": 2},
-        "dasha": {"step_size": 0.5, "compressor_coords": 10},
-        "depthfl": {"alpha": 0.75, "tau": 0.6},
-        "flanders": {"to_keep": 0.6},
-        "fedopt": {
-            "fedopt_tau": 1e-3,
-            "fedopt_beta1": 0.9,
-            "fedopt_beta2": 0.99,
-            "fedopt_eta": 1e-3,
-            "fedopt_eta_l": 1e-3,
-        },
-    }
-
-    configs: List[ExperimentConfig] = []
+    configs: List[EnhancedExperimentConfig] = []
     for strategy in strategies:
-        for attack, param_list in attack_params.items():
+        for attack in config_mgr.get_valid_attacks():
+            param_list = config_mgr.get_attack_params(attack)
             for params in param_list:
                 for dataset in datasets:
-                    cfg = ExperimentConfig(
-                        strategy=strategy,
-                        attack=attack,
-                        dataset=dataset,
-                        attack_params=params,
-                        strategy_params=strategy_params.get(strategy, {}),
-                        num_rounds=10,
-                        num_clients=10,
-                    )
-                    configs.append(cfg)
+                    try:
+                        cfg = EnhancedExperimentConfig(
+                            strategy=strategy,
+                            attack=attack,
+                            dataset=dataset,
+                            attack_params=params,
+                            strategy_params=config_mgr.get_strategy_params(strategy),
+                            num_rounds=config_mgr.defaults.num_rounds,
+                            num_clients=config_mgr.defaults.num_clients,
+                        )
+                        
+                        # Validate configuration and log warnings
+                        warnings = cfg.validate_consistency()
+                        if warnings:
+                            logger.warning(f"Configuration {cfg.get_experiment_id()} warnings: {warnings}")
+                        
+                        configs.append(cfg)
+                        
+                    except ValueError as e:
+                        logger.error(f"Invalid configuration for {strategy}-{attack}-{dataset}: {e}")
+                        continue
+    
+    logger.info(f"Created {len(configs)} valid configurations")
     return configs
 
 
-def run_extensive(configs: List[ExperimentConfig], num_runs: int, results_dir: Path, log_file: Path) -> None:
+def run_extensive(configs: List[EnhancedExperimentConfig], num_runs: int, results_dir: Path, log_file: Path, 
+                 resume: bool = False, parallel: bool = False, max_parallel: int = 1) -> None:
+    """Esegue esperimenti estensivi con supporto per checkpoint, resume e parallelizzazione."""
+    
+    # Crea configurazione migliorata
+    enhanced_config = EnhancedConfigManager()
+    enhanced_config.system.max_parallel_experiments = max_parallel
+    
+    # Usa il runner migliorato
+    with EnhancedExperimentRunner(
+        results_dir=str(results_dir),
+        config_manager=enhanced_config
+    ) as runner:
+        
+        results_dir.mkdir(exist_ok=True)
+        
+        try:
+            if parallel and max_parallel > 1:
+                logger.info(f"Running experiments in parallel mode with {max_parallel} workers")
+                results = runner.run_experiments_parallel(configs, num_runs)
+            else:
+                logger.info("Running experiments sequentially with enhanced checkpoint support")
+                results = runner.run_experiments_sequential(configs, num_runs, resume=resume)
+            
+            # Salva risultati finali
+            runner.save_results(intermediate=False)
+            
+            # Genera e salva report finale
+            final_report = runner.generate_final_report()
+            
+            # Mostra statistiche finali
+            summary = final_report["experiment_summary"]
+            system_metrics = final_report["system_metrics"]
+            retry_metrics = final_report["retry_metrics"]
+            
+            logger.info("=== EXPERIMENT COMPLETION SUMMARY ===")
+            logger.info(f"Total configurations: {summary['total_configurations']}")
+            logger.info(f"Completed experiments: {summary['completed_experiments']}")
+            logger.info(f"Failed experiments: {summary['failed_experiments']}")
+            logger.info(f"Success rate: {summary['success_rate']*100:.1f}%")
+            
+            if system_metrics["total_experiments"] > 0:
+                logger.info(f"Average duration: {system_metrics['average_duration']:.1f}s")
+                if enhanced_config.system.resource_monitoring:
+                    logger.info(f"Average CPU usage: {system_metrics['average_cpu_usage']:.1f}%")
+                    logger.info(f"Average memory usage: {system_metrics['average_memory_usage']:.1f}%")
+            
+            if retry_metrics['total_experiments_with_failures'] > 0:
+                logger.info(f"Experiments requiring retries: {retry_metrics['total_experiments_with_failures']}")
+                logger.info(f"Total retry attempts: {retry_metrics['total_failures']}")
+                logger.info("Failure types: " + ", ".join([f"{k}: {v}" for k, v in retry_metrics['failure_type_counts'].items()]))
+            
+            logger.info("Results and checkpoints saved to: " + str(results_dir))
+            logger.info("=====================================")
+            
+        except KeyboardInterrupt:
+            logger.info("Experiment run interrupted by user")
+            runner.save_results(intermediate=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error during experiment run: {e}")
+            runner.save_results(intermediate=True)
+            raise
+
+def run_extensive_original(configs: List[ExperimentConfig], num_runs: int, results_dir: Path, log_file: Path) -> None:
+    """Versione originale senza checkpoint (mantenuta per compatibilità)."""
     runner = ExtensiveExperimentRunner(results_dir=str(results_dir))
     results_dir.mkdir(exist_ok=True)
 
@@ -184,12 +258,20 @@ def main() -> None:
     parser.add_argument("--num-runs", type=int, default=1, help="Repetitions per configuration")
     parser.add_argument("--results-dir", type=str, default="extensive_results", help="Directory for results")
     parser.add_argument("--log-file", type=str, default="extensive_failures.log", help="File to log failures")
+    parser.add_argument("--resume", action="store_true", help="Resume from previous checkpoint")
+    parser.add_argument("--reset-failed", action="store_true", help="Reset failed experiments for retry")
     args = parser.parse_args()
 
     configs = create_extensive_configurations()
     logger.info(f"Generated {len(configs)} configurations")
 
-    run_extensive(configs, args.num_runs, Path(args.results_dir), Path(args.log_file))
+    # Gestione dei reset se richiesto
+    if args.reset_failed:
+        checkpoint_manager = CheckpointManager(checkpoint_dir=Path(args.results_dir) / "checkpoints")
+        checkpoint_manager.reset_failed_experiments()
+        logger.info("Failed experiments have been reset for retry")
+
+    run_extensive(configs, args.num_runs, Path(args.results_dir), Path(args.log_file), resume=args.resume)
     logger.info("Experiments completed")
 
 

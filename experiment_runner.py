@@ -52,13 +52,44 @@ class ExperimentConfig:
                  strategy_params: Optional[Dict[str, Any]] = None,
                  num_rounds: int = 10,
                  num_clients: int = 10):
-        self.strategy = strategy
-        self.attack = attack
-        self.dataset = dataset
+        self.strategy = self._validate_strategy(strategy)
+        self.attack = self._validate_attack(attack)
+        self.dataset = self._validate_dataset(dataset)
         self.attack_params = attack_params or {}
         self.strategy_params = strategy_params or {}
-        self.num_rounds = num_rounds
-        self.num_clients = num_clients
+        self.num_rounds = self._validate_positive_int(num_rounds, "num_rounds")
+        self.num_clients = self._validate_positive_int(num_clients, "num_clients")
+    
+    def _validate_strategy(self, strategy: str) -> str:
+        """Valida la strategia di aggregazione."""
+        valid_strategies = [
+            "fedavg", "fedavgm", "fedprox", "fednova", "scaffold", "fedadam",
+            "krum", "trimmedmean", "bulyan", "dasha", "depthfl", "heterofl",
+            "fedmeta", "fedper", "fjord", "flanders", "fedopt"
+        ]
+        if strategy not in valid_strategies:
+            raise ValueError(f"Invalid strategy: {strategy}. Valid options: {valid_strategies}")
+        return strategy
+    
+    def _validate_attack(self, attack: str) -> str:
+        """Valida il tipo di attacco."""
+        valid_attacks = ["none", "noise", "missed", "failure", "asymmetry", "labelflip", "gradflip"]
+        if attack not in valid_attacks:
+            raise ValueError(f"Invalid attack: {attack}. Valid options: {valid_attacks}")
+        return attack
+    
+    def _validate_dataset(self, dataset: str) -> str:
+        """Valida il dataset."""
+        valid_datasets = ["MNIST", "FMNIST", "CIFAR10"]
+        if dataset not in valid_datasets:
+            raise ValueError(f"Invalid dataset: {dataset}. Valid options: {valid_datasets}")
+        return dataset
+    
+    def _validate_positive_int(self, value: int, param_name: str) -> int:
+        """Valida che un valore sia un intero positivo."""
+        if not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{param_name} must be a positive integer, got: {value}")
+        return value
     
     def to_dict(self) -> Dict[str, Any]:
         """Converte la configurazione in dizionario."""
