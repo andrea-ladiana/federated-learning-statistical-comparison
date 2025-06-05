@@ -95,7 +95,7 @@ class SystemConfig:
     max_parallel_experiments: int = 1
     resource_monitoring: bool = True
     checkpoint_interval: int = 10  # Save checkpoint every N experiments
-    
+
     def __post_init__(self):
         """Validate configuration after initialization."""
         if self.max_retries < 0:
@@ -108,6 +108,8 @@ class SystemConfig:
             raise ValueError("port must be between 1024 and 65535")
         if self.max_parallel_experiments <= 0:
             raise ValueError("max_parallel_experiments must be positive")
+        if self.checkpoint_interval < 0:
+            raise ValueError("checkpoint_interval must be non-negative")
 
 
 @dataclass
@@ -184,7 +186,7 @@ class EnhancedConfigManager:
         self.system = SystemConfig()
         self.defaults = ExperimentDefaults()
         self.load_config()
-    
+        
     def load_config(self):
         """Carica configurazione da file."""
         if self.config_file.exists():
@@ -201,6 +203,10 @@ class EnhancedConfigManager:
                     self.defaults = ExperimentDefaults(**defaults_data)
                     
                 logger.info(f"Configuration loaded from {self.config_file}")
+            except ValueError as e:
+                # Re-raise validation errors immediately instead of logging and continuing
+                logger.error(f"Configuration validation failed: {e}")
+                raise
             except Exception as e:
                 logger.warning(f"Failed to load config from {self.config_file}: {e}")
                 logger.info("Using default configuration")
