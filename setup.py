@@ -25,7 +25,7 @@ def main():
     
     # Import and run setup
     try:
-        from setup_and_test import main as setup_main
+        from maintenance.setup_and_test import main as setup_main
         setup_main()
     except ImportError as e:
         print(f"❌ Could not import setup script: {e}")

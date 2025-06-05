@@ -25,7 +25,7 @@ sys.path.insert(0, str(project_root / "experiment_runners"))
 sys.path.insert(0, str(project_root / "utilities"))
 sys.path.insert(0, str(project_root / "configuration"))
 
-from enhanced_experiment_runner import (
+from experiment_runners.enhanced_experiment_runner import (
     SystemConfig, ExperimentDefaults, EnhancedConfigManager,
     MetricsCollector, PortManager, EnhancedExperimentConfig,
     EnhancedExperimentRunner, ExperimentValidationError,

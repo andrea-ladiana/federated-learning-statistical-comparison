@@ -20,8 +20,8 @@ from torchvision import datasets, transforms # per la gestione dei dataset
 from models import Net, CNNNet, TinyMNIST, MinimalCNN, MiniResNet20, get_transform_common, get_transform_cifar  # Importazione dei modelli dal modulo condiviso
 
 # Importazione delle funzioni di attacco e configurazione
-import fl_attacks
-from attack_config import *
+import utilities.fl_attacks
+from configuration.attack_config import *
 import random
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score
@@ -88,7 +88,7 @@ def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
         
         # 2. Missed Class (rimuove esempi di una certa classe)
         if MISSED_CLASS["enabled"]:
-            train_indices, excluded_class = fl_attacks.create_missed_class_dataset(
+            train_indices, excluded_class = utilities.fl_attacks.create_missed_class_dataset(
                 trainset, train_indices, MISSED_CLASS["class_removal_prob"])
             if excluded_class >= 0:
                 print(f"[Client {cid}] Missed Class Attack: classe {excluded_class} rimossa")
@@ -97,12 +97,12 @@ def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
         if LABEL_FLIPPING["enabled"]:
             # Determina se questo client è un target per l'attacco
             num_clients = 10  # Assumiamo 10 client per semplicità
-            clients_to_attack = fl_attacks.select_clients_for_label_flipping(
+            clients_to_attack = utilities.fl_attacks.select_clients_for_label_flipping(
                 num_clients, LABEL_FLIPPING["attack_fraction"])
             
             if client_id in clients_to_attack:
                 # Seleziona classi sorgente e target
-                source_class, target_class = fl_attacks.select_source_target_classes(
+                source_class, target_class = utilities.fl_attacks.select_source_target_classes(
                     fixed_source=LABEL_FLIPPING["fixed_source"],
                     fixed_target=LABEL_FLIPPING["fixed_target"])
                 
@@ -110,7 +110,7 @@ def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
                 client_subset = torch.utils.data.Subset(trainset, train_indices)
                 
                 # Applica il label flipping
-                modified_dataset, num_flipped = fl_attacks.apply_targeted_label_flipping(
+                modified_dataset, num_flipped = utilities.fl_attacks.apply_targeted_label_flipping(
                     trainset, train_indices, source_class, target_class, 
                     LABEL_FLIPPING["flip_probability"])
                 
@@ -206,12 +206,12 @@ class LoggingClient(fl.client.NumPyClient):
             if ENABLE_ATTACKS and NOISE_INJECTION["enabled"]:
                 # Verifica se questo client è un target per noise injection
                 num_clients = 10  # Assumiamo 10 client per semplicità
-                noise_clients = fl_attacks.select_clients_for_noise_injection(
+                noise_clients = utilities.fl_attacks.select_clients_for_noise_injection(
                     num_clients, NOISE_INJECTION["attack_fraction"])
                 
                 if int(self.cid) in noise_clients:
                     # Applica noise injection ai dati
-                    data = fl_attacks.apply_noise_injection(data, NOISE_INJECTION["noise_std"])
+                    data = utilities.fl_attacks.apply_noise_injection(data, NOISE_INJECTION["noise_std"])
                     if batch_idx == 1:  # Stampa solo una volta per round
                         print(f"[Client {self.cid}] Noise Injection Attack: std={NOISE_INJECTION['noise_std']}")
             

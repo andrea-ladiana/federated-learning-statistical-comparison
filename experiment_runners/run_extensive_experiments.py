@@ -21,9 +21,9 @@ sys.path.insert(0, str(parent_dir / "utilities"))
 sys.path.insert(0, str(parent_dir / "configuration"))
 
 from basic_experiment_runner import ExperimentRunner, ExperimentConfig
-from checkpoint_manager import CheckpointManager
-from retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
-from config_manager import get_config_manager
+from utilities.checkpoint_manager import CheckpointManager
+from utilities.retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
+from configuration.config_manager import get_config_manager
 from enhanced_experiment_runner import (
     EnhancedExperimentRunner, 
     EnhancedExperimentConfig, 
@@ -49,9 +49,10 @@ logger = logging.getLogger(__name__)
 class ExtensiveExperimentRunner(EnhancedExperimentRunner):
     """Extension of :class:`EnhancedExperimentRunner` that returns process output and handles extensive experiments."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, process_timeout=600, **kwargs):
         super().__init__(*args, **kwargs)
         self.retry_manager = RetryManager(CONSERVATIVE_RETRY)
+        self.process_timeout = process_timeout
 
     def run_single_experiment(self, config: ExperimentConfig, run_id: int) -> Tuple[bool, str]:
         """Run a single experiment and capture the output.
@@ -64,9 +65,7 @@ class ExtensiveExperimentRunner(EnhancedExperimentRunner):
         # Usa il retry manager per eseguire l'esperimento
         return self.retry_manager.execute_with_retry(
             experiment_id=f"{experiment_id}_run_{run_id}",
-            experiment_func=self._run_single_experiment_internal,
-            config=config,
-            run_id=run_id
+            experiment_func=lambda: self._run_single_experiment_internal(config, run_id)
         )
     
     def _run_single_experiment_internal(self, config: ExperimentConfig, run_id: int) -> Tuple[bool, str]:
@@ -81,7 +80,9 @@ class ExtensiveExperimentRunner(EnhancedExperimentRunner):
             logger.info("Waiting for port 8080 to be free...")
             self.wait_for_port(8080, timeout=30)
 
-            cmd = self.build_attack_command(config)
+            # Cast config to EnhancedExperimentConfig if needed
+            enhanced_config = config if isinstance(config, EnhancedExperimentConfig) else EnhancedExperimentConfig(**config.to_dict())
+            cmd = self.build_attack_command(enhanced_config, port=8080)
             logger.info(f"Running command: {' '.join(cmd)}")
             process = subprocess.Popen(
                 cmd,
@@ -104,7 +105,9 @@ class ExtensiveExperimentRunner(EnhancedExperimentRunner):
                     if line:
                         stripped = line.rstrip()
                         output_lines.append(stripped)
-                        self.parse_and_store_metrics(stripped, config, run_id)
+                        # Ensure config is of type EnhancedExperimentConfig
+                        enhanced_config = config if isinstance(config, EnhancedExperimentConfig) else EnhancedExperimentConfig(**config.to_dict())
+                        self.parse_and_store_metrics(stripped, enhanced_config, run_id)
 
                 return_code = process.wait(timeout=self.process_timeout)
                 success = return_code == 0

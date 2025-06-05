@@ -50,24 +50,23 @@ Available runners:
                         help="Run in test mode with reduced configurations")
     
     args = parser.parse_args()
-    
-    # Import and run the appropriate runner
+      # Import and run the appropriate runner
     if args.runner == "basic":
-        from basic_experiment_runner import main as run_basic
+        from experiment_runners.basic_experiment_runner import main as run_basic
         sys.argv = ["basic_experiment_runner.py", "--num-runs", str(args.num_runs)]
         if args.test_mode:
             sys.argv.append("--test-mode")
         run_basic()
         
     elif args.runner == "stable":
-        from stable_experiment_runner import main as run_stable
+        from experiment_runners.stable_experiment_runner import main as run_stable
         sys.argv = ["stable_experiment_runner.py", "--num-runs", str(args.num_runs)]
         if args.test_mode:
             sys.argv.append("--test-mode")
         run_stable()
         
     elif args.runner == "enhanced":
-        from enhanced_experiment_runner import main as run_enhanced
+        from experiment_runners.enhanced_experiment_runner import main as run_enhanced
         sys.argv = ["enhanced_experiment_runner.py", "--num-runs", str(args.num_runs)]
         if args.parallel:
             sys.argv.append("--parallel")
@@ -78,7 +77,7 @@ Available runners:
         run_enhanced()
         
     elif args.runner == "extensive":
-        from run_extensive_experiments import main as run_extensive
+        from experiment_runners.run_extensive_experiments import main as run_extensive
         sys.argv = ["run_extensive_experiments.py", "--num-runs", str(args.num_runs)]
         if args.resume:
             sys.argv.append("--resume")

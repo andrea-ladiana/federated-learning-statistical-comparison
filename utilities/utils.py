@@ -102,7 +102,7 @@ def weighted_average(metrics: List[Tuple[int, Dict[str, Scalar]]]) -> Dict[str, 
     examples = [num_examples for num_examples, _ in metrics]
     total_examples = sum(examples)
 
-    aggregated: Dict[str, float] = {}
+    aggregated: Dict[str, Scalar] = {}
     all_keys = set().union(*(m.keys() for _, m in metrics))
     for key in all_keys:
         values = [float(m.get(key, 0.0)) * num_examples for num_examples, m in metrics]

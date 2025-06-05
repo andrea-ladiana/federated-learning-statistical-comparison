@@ -31,7 +31,7 @@ class RetryConfig:
     max_delay: float = 300.0  # 5 minuti
     exponential_backoff: bool = True
     backoff_multiplier: float = 2.0
-    retry_on_types: set = None  # Se None, riprova su tutti i tipi
+    retry_on_types: Optional[set[FailureType]] = None  # Se None, riprova su tutti i tipi
     
     def __post_init__(self):
         if self.retry_on_types is None:
@@ -45,7 +45,7 @@ class RetryConfig:
 class RetryManager:
     """Gestore dei retry per esperimenti."""
     
-    def __init__(self, config: RetryConfig = None):
+    def __init__(self, config: Optional[RetryConfig] = None):
         self.config = config or RetryConfig()
         self.failure_history: Dict[str, list] = {}
     
@@ -74,7 +74,7 @@ class RetryManager:
             return False
         
         # Controlla se il tipo di fallimento è tra quelli per cui riprovare
-        if failure_type not in self.config.retry_on_types:
+        if self.config.retry_on_types is None or failure_type not in self.config.retry_on_types:
             logger.info(f"Not retrying {experiment_id}: failure type {failure_type} not in retry list")
             return False
         

@@ -17,8 +17,8 @@ parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir / "utilities"))
 sys.path.insert(0, str(parent_dir / "configuration"))
 
-from checkpoint_manager import CheckpointManager
-from config_manager import get_config_manager
+from utilities.checkpoint_manager import CheckpointManager
+from configuration.config_manager import get_config_manager
 
 def format_duration(seconds):
     """Formatta una durata in secondi in formato leggibile."""

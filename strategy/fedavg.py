@@ -5,7 +5,7 @@ from flwr.common.typing import NDArrays
 from flwr.server.client_proxy import ClientProxy
 from flwr.common import FitRes, EvaluateRes
 import numpy as np
-from utils import BaseStrategy
+from utilities.utils import BaseStrategy
 # Correct type for evaluate_fn
 EvaluateFnType = Callable[[int, NDArrays, Dict[str, Scalar]], Optional[Tuple[float, Dict[str, Scalar]]]]
 

@@ -23,7 +23,8 @@ sys.path.insert(0, str(project_root / "experiment_runners"))
 sys.path.insert(0, str(project_root / "utilities"))
 sys.path.insert(0, str(project_root / "configuration"))
 
-from enhanced_experiment_runner import (
+# Import from the correct module path
+from experiment_runners.enhanced_experiment_runner import (
     EnhancedExperimentRunner, EnhancedExperimentConfig, 
     EnhancedConfigManager, CheckpointError
 )

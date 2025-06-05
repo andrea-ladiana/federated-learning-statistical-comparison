@@ -18,10 +18,10 @@ sys.path.insert(0, str(parent_dir / "configuration"))
 sys.path.insert(0, str(parent_dir / "utilities"))
 sys.path.insert(0, str(parent_dir / "experiment_runners"))
 
-from config_manager import get_config_manager, create_default_config_file
-from checkpoint_manager import CheckpointManager
-from retry_manager import RetryManager, CONSERVATIVE_RETRY
-from basic_experiment_runner import ExperimentConfig
+from configuration.config_manager import get_config_manager, create_default_config_file
+from utilities.checkpoint_manager import CheckpointManager
+from utilities.retry_manager import RetryManager, CONSERVATIVE_RETRY
+from experiment_runners.basic_experiment_runner import ExperimentConfig
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

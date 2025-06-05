@@ -5,7 +5,7 @@ from flwr.common.typing import NDArrays
 from flwr.server.client_proxy import ClientProxy
 from flwr.common import FitRes, EvaluateRes
 import numpy as np
-from utils import BaseStrategy, parameters_to_ndarrays, ndarrays_to_parameters, aggregate_ndarrays_weighted
+from utilities.utils import BaseStrategy, parameters_to_ndarrays, ndarrays_to_parameters, aggregate_ndarrays_weighted
 
 
 # Correct type for evaluate_fn
