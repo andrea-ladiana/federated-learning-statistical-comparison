@@ -201,12 +201,12 @@ class ConfigManager:
                 {"asymmetry_min": 0.1, "asymmetry_max": 3.0},
             ],
             "labelflip": [
-                {"labelflip_fraction": 0.2, "flip_prob": 0.8},
-                {"labelflip_fraction": 0.4, "flip_prob": 0.8},
+                {"labelflip_fraction": 0.1, "flip_prob": 0.3},
+                {"labelflip_fraction": 0.5, "flip_prob": 0.8},
             ],
             "gradflip": [
-                {"gradflip_fraction": 0.2, "gradflip_intensity": 1.0},
-                {"gradflip_fraction": 0.4, "gradflip_intensity": 0.5},
+                {"gradflip_fraction": 0.1, "gradflip_intensity": 0.3},
+                {"gradflip_fraction": 0.5, "gradflip_intensity": 0.8},
             ],
         }
         return attack_params.get(attack, [{}])
