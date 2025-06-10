@@ -2,11 +2,9 @@ import flwr as fl  # Libreria Flower
 import sys
 from pathlib import Path
 
-# Add paths for reorganized imports
+# Add parent directory to path for imports
 parent_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(parent_dir / "models"))
-sys.path.insert(0, str(parent_dir / "utilities"))
-sys.path.insert(0, str(parent_dir / "configuration"))
+sys.path.insert(0, str(parent_dir))
 
 # Torch: librerie per l'addestramento di reti neurali
 import torch

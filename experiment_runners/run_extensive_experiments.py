@@ -21,9 +21,9 @@ sys.path.insert(0, str(parent_dir / "utilities"))
 sys.path.insert(0, str(parent_dir / "configuration"))
 
 from basic_experiment_runner import ExperimentRunner, ExperimentConfig
-from utilities.checkpoint_manager import CheckpointManager
-from utilities.retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
-from configuration.config_manager import get_config_manager
+from checkpoint_manager import CheckpointManager
+from retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
+from config_manager import get_config_manager
 from enhanced_experiment_runner import (
     EnhancedExperimentRunner, 
     EnhancedExperimentConfig, 

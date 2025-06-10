@@ -8,12 +8,17 @@ import sys
 import subprocess
 import time
 import argparse
+from pathlib import Path
+
+# Add path to configuration directory
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir / "configuration"))
 
 # Disabilita i messaggi di warning oneDNN di TensorFlow
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Riduce ulteriormente i messaggi di log di TensorFlow
 
-from configuration.attack_config import *
+from attack_config import *
 
 def main():
     parser = argparse.ArgumentParser(description="Avvia esperimenti di FL con attacchi")
@@ -119,10 +124,9 @@ def main():
     
     # Configura gli attacchi in base all'argomento
     configure_attacks(args)
-    
-    # Avvia il server in un processo separato
+      # Avvia il server in un processo separato
     print("Avvio del server...")
-    server_cmd = [sys.executable, "server.py"]
+    server_cmd = [sys.executable, "core/server.py"]
       # Aggiungi round e strategia al comando server
     if args.rounds != 10:  # se diverso dal default
         server_cmd.extend(["--rounds", str(args.rounds)])
@@ -199,7 +203,7 @@ def main():
       # Avvia i client
     client_processes = []
     for i in range(args.num_clients):
-        cmd = [sys.executable, "client.py", "--cid", str(i)]
+        cmd = [sys.executable, "core/client.py", "--cid", str(i)]
         
         # Aggiungi il dataset se diverso dal default
         if args.dataset != "MNIST":

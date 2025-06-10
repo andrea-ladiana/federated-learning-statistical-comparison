@@ -51,9 +51,9 @@ sys.path.insert(0, str(parent_dir / "utilities"))
 sys.path.insert(0, str(parent_dir / "configuration"))
 
 from basic_experiment_runner import ExperimentConfig as BaseExperimentConfig
-from utilities.checkpoint_manager import CheckpointManager
-from utilities.retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
-from configuration.config_manager import get_config_manager
+from checkpoint_manager import CheckpointManager
+from retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
+from config_manager import get_config_manager
 
 # Enhanced logging setup
 logging.basicConfig(
@@ -560,8 +560,7 @@ class EnhancedExperimentRunner:
             time.sleep(2)  # Grace period
         except Exception as e:
             logger.warning(f"Error killing processes: {e}")
-    
-    def wait_for_port(self, port: int, timeout: int = 60):
+      def wait_for_port(self, port: int, timeout: int = 60):
         """Attende che una porta diventi libera."""
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -569,6 +568,7 @@ class EnhancedExperimentRunner:
                 return
             time.sleep(1)
         raise TimeoutError(f"Port {port} did not become free within {timeout} seconds")
+    
     def build_attack_command(self, config: EnhancedExperimentConfig, port: int) -> List[str]:
         """Costruisce il comando per eseguire un esperimento."""
         # Use the correct path to run_with_attacks.py
@@ -579,9 +579,10 @@ class EnhancedExperimentRunner:
             "--strategy", config.strategy,
             "--attack", config.attack,
             "--dataset", config.dataset,
-            "--num-rounds", str(config.num_rounds),
-            "--num-clients", str(config.num_clients),
-            "--port", str(port)
+            "--rounds", str(config.num_rounds),
+            "--num-clients", str(config.num_clients)
+        ]
+            "--num-clients", str(config.num_clients)
         ]
         
         # Add attack parameters
@@ -591,7 +592,7 @@ class EnhancedExperimentRunner:
         # Add strategy parameters with proper mapping
         strategy_param_mapping = {
             "proximal_mu": "proximal-mu",
-            "server_learning_rate": "server-learning-rate",
+            "server_learning_rate": "server-learning-rate", 
             "server_momentum": "server-momentum",
             "num_byzantine": "num-byzantine",
             "beta": "beta",
