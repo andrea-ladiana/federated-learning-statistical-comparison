@@ -39,21 +39,30 @@ def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
         apply_attacks: Se applicare gli attacchi configurati
         dataset_name: Nome del dataset ("MNIST", "FMNIST", "CIFAR10")
     """
-    # Seleziona il dataset e le trasformazioni appropriate
+    # Seleziona il dataset e le trasformazioni appropriate per TinyMNIST (grayscale)
     if dataset_name.upper() == "MNIST":
-        transform = get_transform_common()
+        # TinyMNIST needs grayscale input (1 channel)
+        transform = transforms.Compose([
+            transforms.Resize(28),  # Keep MNIST original size
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))  # Single channel normalization
+        ])
         trainset = datasets.MNIST(".", train=True, download=True, transform=transform)
         testset = datasets.MNIST(".", train=False, download=True, transform=transform)
     elif dataset_name.upper() == "FMNIST":
-        transform = get_transform_common()
+        # TinyMNIST needs grayscale input (1 channel)
+        transform = transforms.Compose([
+            transforms.Resize(28),  # Keep Fashion-MNIST original size
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))  # Single channel normalization
+        ])
         trainset = datasets.FashionMNIST(".", train=True, download=True, transform=transform)
         testset = datasets.FashionMNIST(".", train=False, download=True, transform=transform)
     elif dataset_name.upper() == "CIFAR10":
-        transform = get_transform_cifar()
-        trainset = datasets.CIFAR10(".", train=True, download=True, transform=transform)
-        testset = datasets.CIFAR10(".", train=False, download=True, transform=transform)
+        # CIFAR-10 is not supported with TinyMNIST model (requires grayscale input)
+        raise ValueError(f"CIFAR-10 non è supportato con il modello TinyMNIST. Usa solo MNIST o Fashion-MNIST.")
     else:
-        raise ValueError(f"Dataset non supportato: {dataset_name}")
+        raise ValueError(f"Dataset non supportato: {dataset_name}. Supportati: MNIST, FMNIST")
     
     print(f"[Client {cid}] Caricamento dataset: {dataset_name}")
     
@@ -152,11 +161,11 @@ class LoggingClient(fl.client.NumPyClient):
     def __init__(self, cid: str, dataset_name: str = "MNIST"):
         self.cid = cid
         self.dataset_name = dataset_name
-        self.model = MiniResNet20()  # Using MiniResNet20 for all datasets
+        self.model = TinyMNIST()  # Using TinyMNIST for all datasets
         # Carica i dati con potenziali attacchi applicati
         self.trainloader, self.testloader = load_data(cid=cid, apply_attacks=ENABLE_ATTACKS, dataset_name=dataset_name)
         self.current_round = 0
-        print(f"[Client {cid}] Inizializzato con modello MiniResNet20 per dataset {dataset_name}")
+        print(f"[Client {cid}] Inizializzato con modello TinyMNIST per dataset {dataset_name}")
 
     def get_parameters(self, config):
         print(f"[Client {self.cid}] get_parameters | config: {config}")

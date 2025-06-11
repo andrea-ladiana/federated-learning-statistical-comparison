@@ -644,9 +644,8 @@ def create_experiment_configurations() -> List[ExperimentConfig]:
         "labelflip": {"labelflip_fraction": 0.2, "flip_prob": 0.8},
         "gradflip": {"gradflip_fraction": 0.2, "gradflip_intensity": 1.0}
     }
-    
-    # Dataset disponibili
-    datasets = ["MNIST", "FMNIST", "CIFAR10"]
+      # Dataset disponibili (escluso CIFAR-10)
+    datasets = ["MNIST", "FMNIST"]
     
     # Parametri specifici per strategie (espansi)
     strategy_params = {

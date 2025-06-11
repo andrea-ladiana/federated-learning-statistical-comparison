@@ -148,7 +148,8 @@ def create_extensive_configurations() -> List[EnhancedExperimentConfig]:
     config_mgr = get_config_manager()
     
     strategies = config_mgr.get_valid_strategies()
-    datasets = config_mgr.get_valid_datasets()
+    # Usa solo MNIST e Fashion-MNIST, escludi CIFAR-10
+    datasets = ["MNIST", "FMNIST"]
 
     configs: List[EnhancedExperimentConfig] = []
     for strategy in strategies:

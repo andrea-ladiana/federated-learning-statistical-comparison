@@ -36,8 +36,8 @@ def print_model_parameters(model):
 # 1) Definizione modello identico al client - Shallow Network
 # Nota: ora utilizziamo le classi importate dal modulo models.py
 
-# 2) Pesi iniziali (tutti a zero) - Using MiniResNet20 Model
-initial_model = MiniResNet20()  # Using MiniResNet20 for all datasets
+# 2) Pesi iniziali (tutti a zero) - Using TinyMNIST Model
+initial_model = TinyMNIST()  # Using TinyMNIST for all datasets
 initial_weights = [val.cpu().numpy() for _, val in initial_model.state_dict().items()]
 initial_parameters = ndarrays_to_parameters(initial_weights)
 

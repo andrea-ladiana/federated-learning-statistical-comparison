@@ -560,7 +560,7 @@ class EnhancedExperimentRunner:
             time.sleep(2)  # Grace period
         except Exception as e:
             logger.warning(f"Error killing processes: {e}")
-      def wait_for_port(self, port: int, timeout: int = 60):
+    def wait_for_port(self, port: int, timeout: int = 60):
         """Attende che una porta diventi libera."""
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -582,8 +582,7 @@ class EnhancedExperimentRunner:
             "--rounds", str(config.num_rounds),
             "--num-clients", str(config.num_clients)
         ]
-            "--num-clients", str(config.num_clients)
-        ]
+
         
         # Add attack parameters
         for param, value in config.attack_params.items():
@@ -717,9 +716,13 @@ class EnhancedExperimentRunner:
         """Esecuzione interna dell'esperimento (senza retry)."""
         with self.port_manager.get_port() as port:
             return self.run_single_experiment_with_port(config, run_id, port)
-    
     def parse_and_store_metrics(self, log_line: str, config: EnhancedExperimentConfig, run_id: int):
         """Analizza e memorizza le metriche dai log."""
+        # Debug logging for strategy
+        if hasattr(config, 'strategy'):
+            if config.strategy != 'fedavg':
+                logger.debug(f"DEBUG: Non-fedavg strategy detected: {config.strategy} for experiment {config.get_experiment_id()}")
+        
         # Use attack name with parameters
         attack_name = config.get_attack_name_with_params()
         
@@ -734,8 +737,7 @@ class EnhancedExperimentRunner:
             if round_match:
                 self.current_round = int(round_match.group(1))
                 break
-        
-        # Parse metrics
+          # Parse metrics
         metric_patterns = [
             (r'accuracy[:\s=]+([0-9.]+)', 'accuracy'),
             (r'loss[:\s=]+([0-9.]+)', 'loss'),
@@ -748,6 +750,10 @@ class EnhancedExperimentRunner:
             if match:
                 try:
                     value = float(match.group(1))
+                    
+                    # Debug logging for non-fedavg strategies
+                    if config.strategy != 'fedavg':
+                        logger.info(f"DEBUG: Storing metric for {config.strategy} - {metric_name}: {value}")
                     
                     # Add to results DataFrame
                     new_row = pd.DataFrame([{
@@ -868,12 +874,24 @@ class EnhancedExperimentRunner:
                             self.results_df = pd.concat([self.results_df, new_row], ignore_index=True)
             else:
                 logger.info("No checkpoint found, starting fresh")
-        
-        # Save initial checkpoint
+          # Save initial checkpoint
         self._save_checkpoint(checkpoint_state)
         
         # Prepare experiments to run
-        if resume and 'completed_experiments' in checkpoint_state:
+        if resume and 'completed_experiments' in checkpoint_state and 'experiment_configs' in checkpoint_state:
+            # Use configurations from checkpoint instead of parameter to preserve original strategy settings
+            logger.info("Using configurations from checkpoint to preserve original experiment settings")
+            checkpoint_configs = []
+            for config_dict in checkpoint_state['experiment_configs']:
+                try:
+                    # Create EnhancedExperimentConfig from dictionary data using constructor
+                    checkpoint_configs.append(EnhancedExperimentConfig(**config_dict))
+                except Exception as e:
+                    logger.warning(f"Failed to load config from checkpoint: {e}, using provided config")
+                    # Fallback to provided configs if loading fails
+                    checkpoint_configs = configs
+                    break
+            
             # Filter out already completed experiments
             completed_exp_ids = set()
             for exp in checkpoint_state['completed_experiments']:
@@ -881,7 +899,7 @@ class EnhancedExperimentRunner:
                 completed_exp_ids.add(exp_key)
             
             experiments_to_run = []
-            for config in configs:
+            for config in checkpoint_configs:
                 for run_id in range(num_runs):
                     exp_key = f"{config.get_experiment_id()}_run_{run_id}"
                     if exp_key not in completed_exp_ids:
@@ -1192,7 +1210,8 @@ def create_enhanced_configurations() -> List[EnhancedExperimentConfig]:
     config_mgr = get_config_manager()
     
     strategies = config_mgr.get_valid_strategies()
-    datasets = config_mgr.get_valid_datasets()
+    # Usa solo MNIST e Fashion-MNIST, escludi CIFAR-10
+    datasets = ["MNIST", "FMNIST"]
     
     configs: List[EnhancedExperimentConfig] = []
     

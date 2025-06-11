@@ -12,10 +12,9 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 
-# Add paths for reorganized imports
+# Add parent directory to path for imports
 parent_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(parent_dir / "utilities"))
-sys.path.insert(0, str(parent_dir / "configuration"))
+sys.path.insert(0, str(parent_dir))
 
 from utilities.checkpoint_manager import CheckpointManager
 from configuration.config_manager import get_config_manager
@@ -74,6 +73,17 @@ def show_progress_summary(checkpoint_mgr: CheckpointManager):
     print("EXPERIMENT PROGRESS SUMMARY")
     print("="*60)
     
+    # Se non ci sono esperimenti, mostra un messaggio appropriato
+    if progress['total_experiments'] == 0:
+        print("No experiments found in checkpoint data.")
+        print()
+        print("This could mean:")
+        print("1. Experiments haven't been started yet")
+        print("2. Checkpoint files are corrupted or empty")
+        print("3. Wrong checkpoint directory specified")
+        print("="*60)
+        return
+    
     print(f"Total Experiments: {progress['total_experiments']}")
     print(f"Completed Experiments: {progress['completed_experiments']}")
     print(f"Remaining Experiments: {progress['remaining_experiments']}")
@@ -118,6 +128,10 @@ def show_detailed_status(checkpoint_mgr: CheckpointManager):
     print("\nDETAILED EXPERIMENT STATUS")
     print("-"*60)
     
+    if not checkpoint_mgr.experiment_status:
+        print("No experiment status data available.")
+        return
+    
     experiments_by_status = {
         'completed': [],
         'in_progress': [],
@@ -152,6 +166,10 @@ def show_failure_analysis(checkpoint_mgr: CheckpointManager):
     """Analizza i fallimenti negli esperimenti."""
     print("\nFAILURE ANALYSIS")
     print("-"*60)
+    
+    if not checkpoint_mgr.experiment_status:
+        print("No experiment status data available.")
+        return
     
     total_failures = sum(len(status.failed_runs) for status in checkpoint_mgr.experiment_status.values())
     
@@ -252,16 +270,56 @@ def main():
         print(f"No checkpoint directory found at {checkpoint_dir}")
         print("Make sure you're running this from the correct directory and that")
         print("extensive experiments have been started.")
-        sys.exit(1)
-    
+        sys.exit(1)    
     checkpoint_mgr = CheckpointManager(checkpoint_dir=checkpoint_dir)
     
-    if checkpoint_mgr.experiment_status:
+    # Verifica se ci sono file di checkpoint
+    status_file = checkpoint_dir / "experiment_status.json"
+    config_file = checkpoint_dir / "configurations.json"
+    
+    print(f"Checking checkpoint directory: {checkpoint_dir}")
+    print(f"Status file exists: {status_file.exists()}")
+    print(f"Config file exists: {config_file.exists()}")
+    
+    if status_file.exists() or config_file.exists():
+        # Forza ricaricamento dello stato
+        checkpoint_mgr.load_state()
+        
+        print(f"Loaded {len(checkpoint_mgr.experiment_status)} experiments")
+        print(f"Loaded {len(checkpoint_mgr.configurations)} configurations")
+        
+        # Se non ci sono dati dopo il caricamento, mostra informazioni di debug
+        if not checkpoint_mgr.experiment_status and not checkpoint_mgr.configurations:
+            print("\nDEBUG: Checkpoint files exist but contain no data")
+            
+            # Controlla contenuto dei file
+            if status_file.exists():
+                try:
+                    with open(status_file, 'r') as f:
+                        content = f.read().strip()
+                        if content:
+                            print(f"Status file content preview: {content[:200]}...")
+                        else:
+                            print("Status file is empty")
+                except Exception as e:
+                    print(f"Error reading status file: {e}")
+            
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r') as f:
+                        content = f.read().strip()
+                        if content:
+                            print(f"Config file content preview: {content[:200]}...")
+                        else:
+                            print("Config file is empty")
+                except Exception as e:
+                    print(f"Error reading config file: {e}")
+        
+        # Mostra i dati anche se sono vuoti (per debugging)
         if args.watch:
             watch_mode(checkpoint_mgr, args.refresh_interval)
         else:
             show_progress_summary(checkpoint_mgr)
-            
             if args.detailed:
                 show_detailed_status(checkpoint_mgr)
             
@@ -271,7 +329,22 @@ def main():
             if args.backups:
                 show_backup_info(checkpoint_mgr)
     else:
-        print("No experiment data found in checkpoints.")
+        print("No checkpoint files found.")
+        print(f"Expected files:")
+        print(f"  - {status_file}")
+        print(f"  - {config_file}")
+        
+        # Elenca i file presenti nella directory checkpoint
+        checkpoint_files = list(checkpoint_dir.glob("*"))
+        if checkpoint_files:
+            print(f"\nFiles found in checkpoint directory:")
+            for file_path in sorted(checkpoint_files):
+                file_type = "DIR" if file_path.is_dir() else "FILE"
+                size = f"({file_path.stat().st_size} bytes)" if file_path.is_file() else ""
+                print(f"  [{file_type}] {file_path.name} {size}")
+        else:
+            print("\nCheckpoint directory is empty.")
+        
         print("Make sure extensive experiments have been started.")
 
 if __name__ == "__main__":

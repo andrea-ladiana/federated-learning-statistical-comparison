@@ -21,7 +21,7 @@ class SystemConfig:
     process_timeout: int = 120
     port: int = 8080
     log_level: str = "INFO"
-    checkpoint_backup_interval: int = 20  # Backup ogni N esperimenti
+    checkpoint_backup_interval: int = 10  # Backup ogni N esperimenti
     max_backups: int = 10
     
     def validate(self):
@@ -40,7 +40,7 @@ class SystemConfig:
 @dataclass
 class ExperimentDefaults:
     """Configurazioni predefinite per esperimenti."""
-    num_rounds: int = 10
+    num_rounds: int = 3
     num_clients: int = 10
     learning_rate: float = 0.01
     batch_size: int = 32
