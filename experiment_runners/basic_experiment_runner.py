@@ -284,6 +284,7 @@ class ExperimentRunner:
             cmd.extend([f"--{mapped_param}", str(value)])
         
         return cmd
+    
     def run_single_experiment(self, config: ExperimentConfig, run_id: int) -> bool:
         """Esegue un singolo esperimento con logging migliorato."""
         experiment_id = config.get_experiment_id()
@@ -303,6 +304,13 @@ class ExperimentRunner:
             cmd = self.build_attack_command(config)
             logger.info(f"Running command: {' '.join(cmd)}")
             
+            # CRITICAL FIX: Extract actual strategy from command and store it
+            actual_strategy = self._extract_strategy_from_command(cmd)
+            setattr(config, '_actual_strategy', actual_strategy)
+            
+            if actual_strategy != config.strategy:
+                logger.warning(f"Strategy mismatch: config={config.strategy}, command={actual_strategy}")
+            
             # Esegui l'esperimento con timeout
             logger.info("Starting subprocess...")
             process = subprocess.Popen(
@@ -316,76 +324,71 @@ class ExperimentRunner:
             )
             
             logger.info(f"Process started with PID: {process.pid}")
-            
-            # Raccogli l'output in tempo reale (manteniamo solo le ultime 1000 righe)
+              # Raccogli l'output in tempo reale (manteniamo solo le ultime 1000 righe)
             output_lines = deque(maxlen=1000)
             line_count = 0
             last_log_time = time.time()
             last_progress_report = time.time()
             
-            try:
-                while True:
-                    if process.stdout is not None:
-                        line = process.stdout.readline()
-                        if not line and process.poll() is not None:
-                            break
-                        if line:
-                            line_stripped = line.strip()
-                            output_lines.append(line_stripped)
-                            line_count += 1
-                            
-                            current_time = time.time()
-                            
-                            # Report progresso ogni 30 secondi
-                            if current_time - last_progress_report > 30:
-                                logger.info(f"Experiment still running... Processed {line_count} lines")
-                                last_progress_report = current_time
-                            
-                            # Log righe importanti immediatamente
-                            if any(keyword in line_stripped.lower() for keyword in 
-                                  ['round', 'client', 'server', 'accuracy', 'loss', 'error', 'exception', 'failed', 'starting']):
-                                logger.info(f"OUTPUT: {line_stripped}")
-                            
-                            # Log ogni 50 righe con sample dell'output
-                            elif line_count % 50 == 0:
-                                logger.info(f"Processing line {line_count}: {line_stripped[:100]}...")
-                            
-                            # Parse metrics in tempo reale
-                            self.parse_and_store_metrics(line_stripped, config, run_id)
-                    else:
+            while True:
+                if process.stdout is not None:
+                    line = process.stdout.readline()
+                    if not line and process.poll() is not None:
                         break
-                
-                # Attendi che il processo finisca
-                logger.info("Waiting for process to complete...")
-                return_code = process.wait(timeout=self.process_timeout)
-                
-                logger.info(f"Process completed with return code: {return_code}")
-                logger.info(f"Total output lines processed: {line_count}")
-                
-                if return_code == 0:
-                    logger.info(f"Experiment {experiment_id}, run {run_id} completed successfully")
-                    return True
+                    if line:
+                        line_stripped = line.strip()
+                        output_lines.append(line_stripped)
+                        line_count += 1
+                        
+                        current_time = time.time()
+                        
+                        # Report progresso ogni 30 secondi
+                        if current_time - last_progress_report > 30:
+                            logger.info(f"Experiment still running... Processed {line_count} lines")
+                            last_progress_report = current_time
+                        
+                        # Log righe importanti immediatamente
+                        if any(keyword in line_stripped.lower() for keyword in 
+                              ['round', 'client', 'server', 'accuracy', 'loss', 'error', 'exception', 'failed', 'starting']):
+                            logger.info(f"OUTPUT: {line_stripped}")
+                          # Log ogni 50 righe con sample dell'output
+                        elif line_count % 50 == 0:
+                            logger.info(f"Processing line {line_count}: {line_stripped[:100]}...")
+                        
+                        # Parse metrics in tempo reale
+                        self.parse_and_store_metrics(line_stripped, config, run_id)
                 else:
-                    logger.error(f"Experiment {experiment_id}, run {run_id} failed with return code {return_code}")
-                    # Log ultimi 10 righe di output per debug
-                    if output_lines:
-                        logger.error("Last 10 lines of output:")
-                        for line in list(output_lines)[-10:]:
-                            logger.error(f"  {line}")
-                    return False
-                    
-            except subprocess.TimeoutExpired:
-                logger.error(
-                    f"Experiment {experiment_id}, run {run_id} timed out after {self.process_timeout} seconds"
-                )
-                process.kill()
+                    break
+            
+            # Attendi che il processo finisca
+            logger.info("Waiting for process to complete...")
+            return_code = process.wait(timeout=self.process_timeout)
+            
+            logger.info(f"Process completed with return code: {return_code}")
+            logger.info(f"Total output lines processed: {line_count}")
+            
+            if return_code == 0:
+                logger.info(f"Experiment {experiment_id}, run {run_id} completed successfully")
+                return True
+            else:
+                logger.error(f"Experiment {experiment_id}, run {run_id} failed with return code {return_code}")
                 # Log ultimi 10 righe di output per debug
                 if output_lines:
-                    logger.error("Last 10 lines before timeout:")
+                    logger.error("Last 10 lines of output:")
                     for line in list(output_lines)[-10:]:
                         logger.error(f"  {line}")
                 return False
                 
+        except subprocess.TimeoutExpired:
+            logger.error(
+                f"Experiment {experiment_id}, run {run_id} timed out after {self.process_timeout} seconds"
+            )
+            process.kill()            # Log ultimi 10 righe di output per debug
+            if output_lines:
+                logger.error("Last 10 lines before timeout:")
+                for line in list(output_lines)[-10:]:
+                    logger.error(f"  {line}")
+            return False
         except Exception as e:
             logger.error(f"Error in experiment {experiment_id}, run {run_id}: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -395,9 +398,30 @@ class ExperimentRunner:
             logger.info("Cleaning up processes...")
             self.kill_flower_processes()
             time.sleep(2)  # Grace period
+            # The method must return a bool, but since we're in finally block
+            # the actual return value comes from the try/except blocks above
 
+    def _extract_strategy_from_command(self, command: List[str]) -> str:
+        """Extract strategy from command line arguments."""
+        try:
+            # Find the --strategy argument
+            for i, arg in enumerate(command):
+                if arg == "--strategy" and i + 1 < len(command):
+                    return command[i + 1]
+            return "fedavg"  # Default fallback
+        except Exception:
+            return "fedavg"  # Safe fallback
+    
     def parse_and_store_metrics(self, log_line: str, config: ExperimentConfig, run_id: int):
         """Analizza e memorizza le metriche dai log con pattern migliorati."""
+        # CRITICAL FIX: Use the strategy extracted from command, not from config
+        # This ensures we store the actual strategy that was executed
+        if hasattr(config, '_actual_strategy'):
+            actual_strategy = getattr(config, '_actual_strategy')
+        else:
+            # Fallback to config strategy if command extraction failed
+            actual_strategy = config.strategy
+        
         # Use attack name with parameters
         attack_name = config.get_attack_name_with_params()
         
@@ -427,7 +451,7 @@ class ExperimentRunner:
             for pair in pairs:
                 key, val = pair.split('=', 1)
                 metrics_to_add.append({
-                    "algorithm": config.strategy,
+                    "algorithm": actual_strategy,
                     "attack": attack_name,
                     "dataset": config.dataset,
                     "run": run_id,
@@ -445,7 +469,7 @@ class ExperimentRunner:
             for pair in pairs:
                 key, val = pair.split('=', 1)
                 metrics_to_add.append({
-                    "algorithm": config.strategy,
+                    "algorithm": actual_strategy,
                     "attack": attack_name,
                     "dataset": config.dataset,
                     "run": run_id,
@@ -461,9 +485,8 @@ class ExperimentRunner:
             # Parse the tuples in the list
             tuples_str = server_accuracy_match.group(1)
             tuple_matches = re.findall(r'\((\d+),\s*([0-9.]+)\)', tuples_str)
-            for round_num, accuracy in tuple_matches:
-                metrics_to_add.append({
-                    "algorithm": config.strategy,
+            for round_num, accuracy in tuple_matches:                metrics_to_add.append({
+                    "algorithm": actual_strategy,
                     "attack": attack_name,
                     "dataset": config.dataset,
                     "run": run_id,
@@ -479,18 +502,17 @@ class ExperimentRunner:
             # Parse the tuples in the list
             tuples_str = server_loss_match.group(1)
             tuple_matches = re.findall(r'\((\d+),\s*([0-9.]+)\)', tuples_str)
-            for round_num, loss in tuple_matches:
-                metrics_to_add.append({
-                    "algorithm": config.strategy,
+            for round_num, loss in tuple_matches:                metrics_to_add.append({
+                    "algorithm": actual_strategy,
                     "attack": attack_name,
                     "dataset": config.dataset,
                     "run": run_id,
                     "client_id": -1,  # -1 indicates server aggregate
                     "round": int(round_num),
                     "metric": "server_loss",
-                    "value": float(loss)
-                })
-          # Add all collected metrics to DataFrame
+                    "value": float(loss)                })
+        
+        # Add all collected metrics to DataFrame
         if metrics_to_add:
             try:
                 new_rows = pd.DataFrame(metrics_to_add)

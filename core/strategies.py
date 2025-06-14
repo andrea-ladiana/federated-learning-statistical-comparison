@@ -68,13 +68,14 @@ def create_strategy(
         "evaluate_metrics_aggregation_fn": weighted_average,
         **kwargs
     }
-    
     if strategy_name == "fedavg":
         return CustomFedAvg(**common_kwargs)
     elif strategy_name == "fedavgm":
         # Parametro specifico per FedAvgM
         server_momentum = kwargs.get("server_momentum", 0.9)
-        return CustomFedAvgM(**common_kwargs, server_momentum=server_momentum)
+        # Remove server_momentum from common_kwargs to avoid duplicate parameter
+        fedavgm_kwargs = {k: v for k, v in common_kwargs.items() if k != "server_momentum"}
+        return CustomFedAvgM(server_momentum=server_momentum, **fedavgm_kwargs)
     elif strategy_name == "fedprox":
         # Parametro specifico per FedProx
         proximal_mu = kwargs.get("proximal_mu", 0.01)

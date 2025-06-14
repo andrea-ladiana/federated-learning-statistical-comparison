@@ -279,11 +279,17 @@ class ExperimentRunner:
             self.kill_flower_processes()
             logger.info("Waiting for port 8080 to be free...")
             self.wait_for_port(8080, timeout=30)
-            
-            # Costruisci e esegui il comando
+              # Costruisci e esegui il comando
             cmd = self.build_attack_command(config)
             logger.info(f"Running command: {' '.join(cmd)}")
             
+            # CRITICAL FIX: Extract actual strategy from command and store it
+            actual_strategy = self._extract_strategy_from_command(cmd)
+            setattr(config, '_actual_strategy', actual_strategy)
+            
+            if actual_strategy != config.strategy:
+                logger.warning(f"Strategy mismatch: config={config.strategy}, command={actual_strategy}")
+
             # Esegui l'esperimento con timeout
             logger.info("Starting subprocess...")
             process = subprocess.Popen(
@@ -376,10 +382,30 @@ class ExperimentRunner:
             # Cleanup
             logger.info("Cleaning up processes...")
             self.kill_flower_processes()
-            time.sleep(2)  # Grace period
-    
+            time.sleep(2)  # Grace period    def _extract_strategy_from_command(self, command: List[str]) -> str:
+        """Extract strategy from command line arguments."""
+        try:
+            # Find the --strategy argument
+            for i, arg in enumerate(command):
+                if arg == "--strategy" and i + 1 < len(command):
+                    return command[i + 1]
+            return "fedavg"  # Default fallback
+        except Exception:
+            return "fedavg"  # Safe fallback
+
     def parse_and_store_metrics(self, log_line: str, config: ExperimentConfig, run_id: int):
         """Analizza e memorizza le metriche dai log con pattern migliorati."""
+        # CRITICAL FIX: Use the strategy extracted from command, not from config
+        # This ensures we store the actual strategy that was executed
+        if hasattr(config, '_actual_strategy'):
+            actual_strategy = getattr(config, '_actual_strategy')
+        else:
+            # Fallback to config strategy if command extraction failed
+            actual_strategy = config.strategy
+        
+        # Use attack name with parameters
+        attack_name = config.get_attack_name_with_params()
+        
         # Pattern migliorati per estrarre metriche dai log
         patterns = {
             # Pattern per metriche del client durante il fit
@@ -433,11 +459,10 @@ class ExperimentRunner:
                         accuracy = float(match.group(4))
                         
                         metric_prefix = "eval_" if pattern_name == 'client_validation' else ""
-                        
-                        metrics_to_add.extend([
+                          metrics_to_add.extend([
                             {
-                                "algorithm": config.strategy,
-                                "attack": config.attack,
+                                "algorithm": actual_strategy,
+                                "attack": attack_name,
                                 "dataset": config.dataset,
                                 "run": run_id,
                                 "client_id": client_id,
@@ -446,8 +471,8 @@ class ExperimentRunner:
                                 "value": loss
                             },
                             {
-                                "algorithm": config.strategy,
-                                "attack": config.attack,
+                                "algorithm": actual_strategy,
+                                "attack": attack_name,
                                 "dataset": config.dataset,
                                 "run": run_id,
                                 "client_id": client_id,
@@ -464,11 +489,10 @@ class ExperimentRunner:
                         accuracy = float(match.group(3))
                         
                         metric_prefix = "eval_" if pattern_name == 'client_eval' else ""
-                        
-                        metrics_to_add.extend([
+                          metrics_to_add.extend([
                             {
-                                "algorithm": config.strategy,
-                                "attack": config.attack,
+                                "algorithm": actual_strategy,
+                                "attack": attack_name,
                                 "dataset": config.dataset,
                                 "run": run_id,
                                 "client_id": client_id,
@@ -477,8 +501,8 @@ class ExperimentRunner:
                                 "value": loss
                             },
                             {
-                                "algorithm": config.strategy,
-                                "attack": config.attack,
+                                "algorithm": actual_strategy,
+                                "attack": attack_name,
                                 "dataset": config.dataset,
                                 "run": run_id,
                                 "client_id": client_id,
@@ -497,10 +521,9 @@ class ExperimentRunner:
                             metric_name = "server_loss"
                         else:
                             metric_name = "server_accuracy"
-                        
-                        metrics_to_add.append({
-                            "algorithm": config.strategy,
-                            "attack": config.attack,
+                          metrics_to_add.append({
+                            "algorithm": actual_strategy,
+                            "attack": attack_name,
                             "dataset": config.dataset,
                             "run": run_id,
                             "client_id": -1,  # -1 indica metriche aggregate del server

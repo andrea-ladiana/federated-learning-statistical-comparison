@@ -84,6 +84,15 @@ class ExtensiveExperimentRunner(EnhancedExperimentRunner):
             enhanced_config = config if isinstance(config, EnhancedExperimentConfig) else EnhancedExperimentConfig(**config.to_dict())
             cmd = self.build_attack_command(enhanced_config, port=8080)
             logger.info(f"Running command: {' '.join(cmd)}")
+            
+            # Extract actual strategy from command for validation
+            actual_strategy_from_cmd = self._extract_strategy_from_command(cmd)
+            if actual_strategy_from_cmd != enhanced_config.strategy:
+                logger.warning(f"Strategy mismatch: config={enhanced_config.strategy}, command={actual_strategy_from_cmd}")
+            
+            # Store the command strategy for use in metric parsing
+            setattr(enhanced_config, '_actual_strategy', actual_strategy_from_cmd)
+            
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -105,8 +114,7 @@ class ExtensiveExperimentRunner(EnhancedExperimentRunner):
                     if line:
                         stripped = line.rstrip()
                         output_lines.append(stripped)
-                        # Ensure config is of type EnhancedExperimentConfig
-                        enhanced_config = config if isinstance(config, EnhancedExperimentConfig) else EnhancedExperimentConfig(**config.to_dict())
+                        # Use the already prepared enhanced_config with extracted strategy
                         self.parse_and_store_metrics(stripped, enhanced_config, run_id)
 
                 return_code = process.wait(timeout=self.process_timeout)
@@ -191,8 +199,8 @@ def run_extensive(configs: List[EnhancedExperimentConfig], num_runs: int, result
     enhanced_config = EnhancedConfigManager()
     enhanced_config.system.max_parallel_experiments = max_parallel
     
-    # Usa il runner migliorato
-    with EnhancedExperimentRunner(
+    # Usa il runner estensivo invece di quello base per mantenere la compatibilità
+    with ExtensiveExperimentRunner(
         results_dir=str(results_dir),
         config_manager=enhanced_config
     ) as runner:

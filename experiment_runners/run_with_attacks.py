@@ -12,13 +12,72 @@ from pathlib import Path
 
 # Add path to configuration directory
 parent_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(parent_dir / "configuration"))
+config_dir = parent_dir / "configuration"
+sys.path.insert(0, str(config_dir))
 
 # Disabilita i messaggi di warning oneDNN di TensorFlow
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Riduce ulteriormente i messaggi di log di TensorFlow
 
-from attack_config import *
+# Import attack configurations with explicit path handling
+import importlib.util
+
+def load_attack_config():
+    """Load attack configuration from file."""
+    config_file = config_dir / "attack_config.py"
+    spec = importlib.util.spec_from_file_location("attack_config", config_file)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load spec from {config_file}")
+    
+    attack_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(attack_config)
+    return attack_config
+
+try:
+    attack_config = load_attack_config()
+    # Import the specific configurations
+    NOISE_INJECTION = attack_config.NOISE_INJECTION
+    MISSED_CLASS = attack_config.MISSED_CLASS
+    CLIENT_FAILURE = attack_config.CLIENT_FAILURE
+    DATA_ASYMMETRY = attack_config.DATA_ASYMMETRY
+    LABEL_FLIPPING = attack_config.LABEL_FLIPPING
+    GRADIENT_FLIPPING = attack_config.GRADIENT_FLIPPING
+except Exception as e:
+    print(f"Warning: Could not import attack config: {e}")
+    # Fallback: define configurations locally
+    NOISE_INJECTION = {
+        "enabled": False,
+        "noise_std": 0.1,
+        "attack_fraction": 0.2,
+    }
+    MISSED_CLASS = {
+        "enabled": False,
+        "class_removal_prob": 0.3,
+    }
+    CLIENT_FAILURE = {
+        "enabled": False,
+        "failure_prob": 0.1,
+        "debug_mode": True,
+    }
+    DATA_ASYMMETRY = {
+        "enabled": False,
+        "min_factor": 0.5,
+        "max_factor": 3.0,
+        "class_removal_prob": 0.0,
+    }
+    LABEL_FLIPPING = {
+        "enabled": False,
+        "attack_fraction": 0.2,
+        "flip_probability": 0.8,
+        "fixed_source": None,
+        "fixed_target": None,
+        "change_each_round": True,
+    }
+    GRADIENT_FLIPPING = {
+        "enabled": False,
+        "attack_fraction": 0.2,
+        "flip_intensity": 1.0,
+    }
 
 def main():
     parser = argparse.ArgumentParser(description="Avvia esperimenti di FL con attacchi")
@@ -123,10 +182,19 @@ def main():
     args = parser.parse_args()
     
     # Configura gli attacchi in base all'argomento
-    configure_attacks(args)
-      # Avvia il server in un processo separato
+    configure_attacks(args)    # Avvia il server in un processo separato
     print("Avvio del server...")
-    server_cmd = [sys.executable, "core/server.py"]
+    
+    # Determine the correct path to core/server.py based on current working directory
+    current_dir = Path.cwd()
+    if current_dir.name == "experiment_runners":
+        # We're in the experiment_runners directory, need to go up one level
+        server_path = current_dir.parent / "core" / "server.py"
+    else:
+        # We're in the main directory
+        server_path = current_dir / "core" / "server.py"
+    
+    server_cmd = [sys.executable, str(server_path)]
       # Aggiungi round e strategia al comando server
     if args.rounds != 10:  # se diverso dal default
         server_cmd.extend(["--rounds", str(args.rounds)])
@@ -199,11 +267,20 @@ def main():
     
     # Attendi che il server si avvii
     print("Attesa avvio server (5 secondi)...")
-    time.sleep(5)
-      # Avvia i client
+    time.sleep(5)    # Avvia i client
     client_processes = []
+    
+    # Determine the correct path to core/client.py based on current working directory
+    current_dir = Path.cwd()
+    if current_dir.name == "experiment_runners":
+        # We're in the experiment_runners directory, need to go up one level
+        client_path = current_dir.parent / "core" / "client.py"
+    else:
+        # We're in the main directory
+        client_path = current_dir / "core" / "client.py"
+    
     for i in range(args.num_clients):
-        cmd = [sys.executable, "core/client.py", "--cid", str(i)]
+        cmd = [sys.executable, str(client_path), "--cid", str(i)]
         
         # Aggiungi il dataset se diverso dal default
         if args.dataset != "MNIST":

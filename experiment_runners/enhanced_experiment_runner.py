@@ -46,14 +46,15 @@ from pathlib import Path
 
 # Add paths for reorganized imports
 parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir))
 sys.path.insert(0, str(parent_dir / "experiment_runners"))
 sys.path.insert(0, str(parent_dir / "utilities"))
 sys.path.insert(0, str(parent_dir / "configuration"))
 
 from basic_experiment_runner import ExperimentConfig as BaseExperimentConfig
-from checkpoint_manager import CheckpointManager
-from retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
-from config_manager import get_config_manager
+from utilities.checkpoint_manager import CheckpointManager
+from utilities.retry_manager import RetryManager, RetryConfig, CONSERVATIVE_RETRY
+from configuration.config_manager import get_config_manager
 
 # Enhanced logging setup
 logging.basicConfig(
@@ -568,11 +569,17 @@ class EnhancedExperimentRunner:
                 return
             time.sleep(1)
         raise TimeoutError(f"Port {port} did not become free within {timeout} seconds")
-    
     def build_attack_command(self, config: EnhancedExperimentConfig, port: int) -> List[str]:
         """Costruisce il comando per eseguire un esperimento."""
-        # Use the correct path to run_with_attacks.py
-        run_with_attacks_path = self.base_dir / "experiment_runners" / "run_with_attacks.py"
+        # Determine the correct path to run_with_attacks.py based on current working directory
+        current_dir = Path.cwd()
+        
+        if current_dir.name == "experiment_runners":
+            # We're already in the experiment_runners directory
+            run_with_attacks_path = "run_with_attacks.py"
+        else:
+            # We're in the main directory, need to include experiment_runners path
+            run_with_attacks_path = self.base_dir / "experiment_runners" / "run_with_attacks.py"
         
         cmd = [
             sys.executable, str(run_with_attacks_path),
@@ -638,10 +645,17 @@ class EnhancedExperimentRunner:
             # Cleanup and wait for port
             self.kill_flower_processes()
             self.wait_for_port(port, timeout=30)
-            
-            # Build and execute command
+              # Build and execute command
             cmd = self.build_attack_command(config, port)
             logger.info(f"Running command: {' '.join(cmd)}")
+            
+            # Extract actual strategy from command for validation
+            actual_strategy_from_cmd = self._extract_strategy_from_command(cmd)
+            if actual_strategy_from_cmd != config.strategy:
+                logger.warning(f"Strategy mismatch: config={config.strategy}, command={actual_strategy_from_cmd}")
+            
+            # Store the command strategy for use in metric parsing
+            setattr(config, '_actual_strategy', actual_strategy_from_cmd)
             
             process = subprocess.Popen(
                 cmd,
@@ -705,8 +719,7 @@ class EnhancedExperimentRunner:
         """Esegue un singolo esperimento con retry automatico."""
         experiment_id = config.get_experiment_id()
         full_experiment_id = f"{experiment_id}_run_{run_id}"
-        
-        # Use retry manager with a lambda to wrap the function call with parameters
+          # Use retry manager with a lambda to wrap the function call with parameters
         return self.retry_manager.execute_with_retry(
             experiment_id=full_experiment_id,
             experiment_func=lambda: self._run_single_experiment_internal(config, run_id)
@@ -716,62 +729,141 @@ class EnhancedExperimentRunner:
         """Esecuzione interna dell'esperimento (senza retry)."""
         with self.port_manager.get_port() as port:
             return self.run_single_experiment_with_port(config, run_id, port)
-    def parse_and_store_metrics(self, log_line: str, config: EnhancedExperimentConfig, run_id: int):
-        """Analizza e memorizza le metriche dai log."""
-        # Debug logging for strategy
-        if hasattr(config, 'strategy'):
-            if config.strategy != 'fedavg':
-                logger.debug(f"DEBUG: Non-fedavg strategy detected: {config.strategy} for experiment {config.get_experiment_id()}")
-        
-        # Use attack name with parameters
-        attack_name = config.get_attack_name_with_params()
-        
-        # Extract round number
-        round_patterns = [
-            r'\[ROUND (\d+)\]',
-            r'Round (\d+)',
-        ]
-        
-        for pattern in round_patterns:
-            round_match = re.search(pattern, log_line, re.IGNORECASE)
+    def _extract_strategy_from_command(self, command: List[str]) -> str:
+        """Extract strategy from command line arguments using regex."""
+        try:
+            # Find the --strategy argument
+            for i, arg in enumerate(command):
+                if arg == "--strategy" and i + 1 < len(command):
+                    return command[i + 1]
+            return "fedavg"  # Default fallback
+        except Exception:
+                        return "fedavg"  # Safe fallback
+    
+    def parse_and_store_metrics(self, log_line: str, config: EnhancedExperimentConfig, run_id: int) -> None:
+        """Analizza una riga di output e memorizza le metriche rilevanti."""
+        try:
+            # Utilizza _actual_strategy se disponibile, altrimenti config.strategy
+            current_strategy = getattr(config, '_actual_strategy', config.strategy)
+            
+            # Track round numbers from log
+            round_match = re.search(r"\[ROUND (\d+)\]", log_line)
             if round_match:
                 self.current_round = int(round_match.group(1))
-                break
-          # Parse metrics
-        metric_patterns = [
-            (r'accuracy[:\s=]+([0-9.]+)', 'accuracy'),
-            (r'loss[:\s=]+([0-9.]+)', 'loss'),
-            (r'eval_accuracy[:\s=]+([0-9.]+)', 'eval_accuracy'),
-            (r'eval_loss[:\s=]+([0-9.]+)', 'eval_loss'),
-        ]
-        
-        for pattern, metric_name in metric_patterns:
-            match = re.search(pattern, log_line, re.IGNORECASE)
-            if match:
-                try:
-                    value = float(match.group(1))
+                return
+            
+            # Server-side metrics from aggregate fit
+            server_fit_match = re.search(r"\[Server\] Round (\d+) aggregate fit -> (.+)", log_line)
+            if server_fit_match:
+                round_num = int(server_fit_match.group(1))
+                metrics_str = server_fit_match.group(2)
+                
+                # Parse multiple metrics from the string
+                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                for metric_name, metric_value in metric_matches:
+                    new_row = {
+                        "algorithm": current_strategy,
+                        "attack": config.attack,
+                        "dataset": config.dataset,
+                        "run": run_id,
+                        "client_id": "server",
+                        "round": round_num,
+                        "metric": f"fit_{metric_name}",
+                        "value": float(metric_value),
+                    }
+                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
+                    logger.debug(f"Stored server fit metric: {new_row}")
+                return
+            
+            # Server-side metrics from evaluate
+            server_eval_match = re.search(r"\[Server\] Round (\d+) evaluate -> (.+)", log_line)
+            if server_eval_match:
+                round_num = int(server_eval_match.group(1))
+                metrics_str = server_eval_match.group(2)
+                
+                # Parse multiple metrics from the string
+                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                for metric_name, metric_value in metric_matches:
+                    new_row = {
+                        "algorithm": current_strategy,
+                        "attack": config.attack,
+                        "dataset": config.dataset,
+                        "run": run_id,
+                        "client_id": "server",
+                        "round": round_num,
+                        "metric": f"eval_{metric_name}",
+                        "value": float(metric_value),
+                    }
+                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
+                    logger.debug(f"Stored server eval metric: {new_row}")
+                return
+            
+            # Client-side fit metrics
+            client_fit_match = re.search(r"\[Client (\d+)\] fit complete \| (.+)", log_line)
+            if client_fit_match:
+                client_id = int(client_fit_match.group(1))
+                metrics_str = client_fit_match.group(2)
+                
+                # Parse multiple metrics from the string
+                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                for metric_name, metric_value in metric_matches:
+                    # Map avg_loss to loss for consistency
+                    if metric_name == "avg_loss":
+                        metric_name = "loss"
                     
-                    # Debug logging for non-fedavg strategies
-                    if config.strategy != 'fedavg':
-                        logger.info(f"DEBUG: Storing metric for {config.strategy} - {metric_name}: {value}")
+                    new_row = {
+                        "algorithm": current_strategy,
+                        "attack": config.attack,
+                        "dataset": config.dataset,
+                        "run": run_id,
+                        "client_id": client_id,
+                        "round": self.current_round,
+                        "metric": f"fit_{metric_name}",
+                        "value": float(metric_value),
+                    }
+                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
+                    logger.debug(f"Stored client fit metric: {new_row}")
+                return
+            
+            # Client-side evaluate metrics
+            client_eval_match = re.search(r"\[Client (\d+)\] evaluate complete \| (.+)", log_line)
+            if client_eval_match:
+                client_id = int(client_eval_match.group(1))
+                metrics_str = client_eval_match.group(2)
+                
+                # Parse multiple metrics from the string
+                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                for metric_name, metric_value in metric_matches:
+                    # Map avg_loss to loss for consistency
+                    if metric_name == "avg_loss":
+                        metric_name = "loss"
                     
-                    # Add to results DataFrame
-                    new_row = pd.DataFrame([{
-                        'algorithm': config.strategy,
-                        'attack': attack_name,
-                        'dataset': config.dataset,
-                        'run': run_id,
-                        'client_id': -1,  # Server metrics
-                        'round': self.current_round,
-                        'metric': metric_name,
-                        'value': value
-                    }])
-                    
-                    self.results_df = pd.concat([self.results_df, new_row], ignore_index=True)
-                    
-                except ValueError:
-                    logger.warning(f"Could not parse metric value: {match.group(1)}")
-    
+                    new_row = {
+                        "algorithm": current_strategy,
+                        "attack": config.attack,
+                        "dataset": config.dataset,
+                        "run": run_id,
+                        "client_id": client_id,
+                        "round": self.current_round,
+                        "metric": f"eval_{metric_name}",
+                        "value": float(metric_value),
+                    }
+                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
+                    logger.debug(f"Stored client eval metric: {new_row}")
+                return
+            
+            # Client configuration messages to track round
+            client_config_match = re.search(r"\[Client (\d+)\] (?:fit|evaluate) \| Received parameters, config: \{'round': (\d+)\}", log_line)
+            if client_config_match:
+                round_num = int(client_config_match.group(2))
+                self.current_round = round_num
+                return
+
+        except Exception as e:
+            logger.error(f"Error parsing metrics from line '{log_line}': {e}")
+            logger.debug(traceback.format_exc())
+
+
     def run_experiments_parallel(self, 
                                 configs: List[EnhancedExperimentConfig], 
                                 num_runs: int = 1) -> pd.DataFrame:
@@ -890,29 +982,73 @@ class EnhancedExperimentRunner:
                     logger.warning(f"Failed to load config from checkpoint: {e}, using provided config")
                     # Fallback to provided configs if loading fails
                     checkpoint_configs = configs
-                    break
+                    break              # Filter out already completed experiments
+            # Use a more robust comparison based on experiment parameters, not ID strings
+            def normalize_experiment_params(strategy, attack, dataset, attack_params):
+                """Create a normalized tuple for experiment comparison"""
+                if attack == 'none' or not attack_params:
+                    return (strategy, attack, dataset, tuple())
+                else:
+                    # Sort parameters to ensure consistent comparison
+                    sorted_params = tuple(sorted(attack_params.items()))
+                    return (strategy, attack, dataset, sorted_params)
             
-            # Filter out already completed experiments
-            completed_exp_ids = set()
+            # Build set of completed experiments based on their actual parameters
+            completed_experiments = set()
             for exp in checkpoint_state['completed_experiments']:
-                exp_key = f"{exp['experiment_id']}_run_{exp['run_id']}"
-                completed_exp_ids.add(exp_key)
+                # Extract parameters from the experiment ID or use stored config
+                exp_id = exp['experiment_id']
+                run_id = exp['run_id']
+                
+                # Try to find the corresponding config in checkpoint
+                exp_config = None
+                for config in checkpoint_state.get('experiment_configs', []):
+                    config_id = config.get('strategy', 'unknown')
+                    if config.get('attack', 'none') != 'none':
+                        attack_params = config.get('attack_params', {})
+                        if attack_params:
+                            params_str = "_".join([f"{k}{v}" for k, v in sorted(attack_params.items())])
+                            test_id = f"{config.get('strategy')}_{config.get('attack')}_{params_str}_{config.get('dataset')}"
+                        else:
+                            test_id = f"{config.get('strategy')}_{config.get('attack')}_{config.get('dataset')}"
+                    else:
+                        test_id = f"{config.get('strategy')}_{config.get('attack')}_{config.get('dataset')}"
+                    
+                    if test_id == exp_id or exp_id.startswith(test_id):
+                        exp_config = config
+                        break
+                
+                if exp_config:
+                    # Use the actual config parameters for comparison
+                    strategy = exp_config.get('strategy', 'unknown')
+                    attack = exp_config.get('attack', 'none')
+                    dataset = exp_config.get('dataset', 'unknown')
+                    attack_params = exp_config.get('attack_params', {})
+                    
+                    exp_tuple = normalize_experiment_params(strategy, attack, dataset, attack_params)
+                    completed_experiments.add((exp_tuple, run_id))
             
             experiments_to_run = []
             for config in checkpoint_configs:
-                for run_id in range(num_runs):
-                    exp_key = f"{config.get_experiment_id()}_run_{run_id}"
-                    if exp_key not in completed_exp_ids:
+                # Create normalized tuple for this experiment
+                strategy = config.strategy
+                attack = config.attack
+                dataset = config.dataset
+                attack_params = config.attack_params if hasattr(config, 'attack_params') else {}
+                
+                exp_tuple = normalize_experiment_params(strategy, attack, dataset, attack_params)
+                
+                for run_id in range(num_runs):                    # Check if this specific experiment+run combination is already completed
+                    if (exp_tuple, run_id) not in completed_experiments:
                         experiments_to_run.append((config, run_id))
         else:
             experiments_to_run = [(cfg, run_id) for cfg in configs for run_id in range(num_runs)]
         
         logger.info(f"Running {len(experiments_to_run)} experiments")
         
-        # Setup checkpoint manager (for legacy compatibility)
+        # Setup checkpoint manager - Always register experiments to ensure they're tracked
         config_dicts = [cfg.to_dict() for cfg in configs]
-        if not resume:
-            self.checkpoint_manager.register_experiments(config_dicts, num_runs)
+        self.checkpoint_manager.register_experiments(config_dicts, num_runs)
         
         completed_count = len(checkpoint_state.get('completed_experiments', []))
         failed_count = 0
