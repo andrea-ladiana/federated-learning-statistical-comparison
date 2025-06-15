@@ -247,7 +247,7 @@ def watch_mode(checkpoint_mgr: CheckpointManager, refresh_interval: int = 10):
 def main():
     """Funzione principale."""
     parser = argparse.ArgumentParser(description="Monitor experiment progress")
-    parser.add_argument("--results-dir", type=str, default="extensive_results",
+    parser.add_argument("--results-dir", type=str, default="experiment_runners/extensive_results",
                        help="Directory containing experiment results")
     parser.add_argument("--watch", action="store_true",
                        help="Watch mode for continuous monitoring")
