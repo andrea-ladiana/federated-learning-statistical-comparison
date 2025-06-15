@@ -18,7 +18,7 @@ A comprehensive federated learning framework built on top of the Flower library,
 > 🆕 **Major Update**: This codebase has been completely reorganized for better maintainability and clarity!
 
 **What's New:**
-- **🏛️ Organized Structure**: Files grouped into logical directories (`core/`, `experiment_runners/`, `configuration/`, `utilities/`, `scripts/`, `maintenance/`)
+- **🏛️ Organized Structure**: Files grouped into logical directories (`core/`, `experiment_runners/`, `configuration/`, `utilities/`, `scripts/`)
 - **🚀 Enhanced Experiment Runner**: Advanced parallel execution with checkpointing, resource monitoring, and intelligent retry mechanisms
 - **⚡ Configuration Management**: Centralized YAML-based configuration with validation and environment management
 - **📊 Advanced Monitoring**: Real-time experiment monitoring with resource tracking and progress visualization
@@ -138,11 +138,11 @@ conda activate federated-learning
 # Quick setup
 python setup.py
 
-# Detailed setup with testing
-python maintenance/setup_and_test.py
+# Detailed setup with testing (if available locally)
+# python maintenance/setup_and_test.py
 
-# Install Flower (if needed)
-python maintenance/install_flower.py
+# Install Flower (if available locally)  
+# python maintenance/install_flower.py
 ```
 
 6. **Verify installation:**
@@ -201,8 +201,8 @@ python experiment_runners/run_with_attacks.py --strategy fedavg --dataset cifar1
 # Quick setup and environment check
 python setup.py
 
-# Detailed setup with testing
-python maintenance/setup_and_test.py
+# Detailed setup with testing (if available locally)
+# python maintenance/setup_and_test.py
 
 # Verify models work after reorganization
 python scripts/verify_models.py
@@ -674,18 +674,9 @@ This framework has been used for:
 
 ## Documentation
 
-### Scientific Papers
+### Scientific References
 
-The `docs/` directory contains original papers for all implemented algorithms:
-
-- **FedAvg.pdf:** Original federated averaging paper
-- **FedProx.pdf:** Proximal federated optimization
-- **SCAFFOLD.pdf:** Controlled averaging for FL
-- **FedAdam.pdf:** Adaptive federated optimization
-- **FedNova.pdf:** FedNova normalized averaging
-- **Krum.pdf:** Byzantine-tolerant aggregation
-- **Bulyan.pdf:** Enhanced Byzantine tolerance
-- **TrimmedMean.pdf:** Robust aggregation method
+This framework implements algorithms from established research papers. For detailed information about the theoretical foundations and original implementations, please refer to the scientific literature cited in the code documentation.
 
 ### Reports
 
@@ -846,7 +837,6 @@ This framework implements algorithms from the following key papers:
 For questions, issues, or contributions:
 
 - **GitHub Issues**: [Report bugs and request features](https://github.com/andrea-ladiana/federated-learning-statistical-comparison/issues)
-- **Documentation**: Comprehensive guides in the `docs/` directory
 - **Research Collaboration**: Contact for academic partnerships and research collaborations
 - **Educational Use**: Framework designed for FL courses and workshops
 
@@ -872,7 +862,6 @@ For questions, issues, or contributions:
 ├── configuration/          # Configuration files and managers
 ├── utilities/              # Support utilities (checkpoints, retry, etc.)
 ├── scripts/                # Monitoring and analysis scripts  
-├── maintenance/            # Setup and testing tools
 └── [existing directories]  # Models, strategies, attacks, baselines unchanged
 ```
 
