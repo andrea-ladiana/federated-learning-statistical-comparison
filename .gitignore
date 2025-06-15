@@ -3,6 +3,9 @@ FedAVG1/
 FedAVG2/
 FedAVG3/
 
+# Strategy old files
+strategy/old/
+
 # Dataset files and directories
 *.tar.gz
 *.tar
