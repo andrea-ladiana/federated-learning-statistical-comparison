@@ -9,6 +9,10 @@ strategy/old/
 # Maintenance files
 maintenance/
 
+# Reports and other files
+reports/
+altro/
+
 # Dataset files and directories
 *.tar.gz
 *.tar
