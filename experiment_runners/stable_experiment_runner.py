@@ -79,6 +79,14 @@ class ExperimentConfig:
         
         return f"{self.strategy}_{attack_str}_{self.dataset}"
 
+    def get_attack_name_with_params(self) -> str:
+        """Genera un nome per l'attacco con i suoi parametri."""
+        attack_str = f"{self.attack}"
+        if self.attack_params:
+            params_str = "_".join([f"{k}{v}" for k, v in sorted(self.attack_params.items())])
+            attack_str += f"_{params_str}"
+        return attack_str
+
 class MetricsCollector:
     """Raccoglie metriche dai log dell'esperimento."""
     
@@ -252,13 +260,17 @@ class ExperimentRunner:
             "alpha": "alpha",
             "tau": "tau",
             # FLANDERS
-            "to_keep": "to-keep",
-            # FedOpt - mantenere i nomi specifici
+            "to_keep": "to-keep",            # FedOpt - mantenere i nomi specifici
             "fedopt_tau": "fedopt-tau",
             "fedopt_beta1": "fedopt-beta1",
             "fedopt_beta2": "fedopt-beta2",
             "fedopt_eta": "fedopt-eta",
             "fedopt_eta_l": "fedopt-eta-l",
+            # FedOpt parameters with underscore names (used in config)
+            "beta_1": "fedopt-beta1",
+            "beta_2": "fedopt-beta2",
+            "eta": "fedopt-eta",
+            "eta_l": "fedopt-eta-l",
         }
         
         # Aggiungi parametri di strategia con mappatura corretta
@@ -382,7 +394,9 @@ class ExperimentRunner:
             # Cleanup
             logger.info("Cleaning up processes...")
             self.kill_flower_processes()
-            time.sleep(2)  # Grace period    def _extract_strategy_from_command(self, command: List[str]) -> str:
+            time.sleep(2)  # Grace period
+
+    def _extract_strategy_from_command(self, command: List[str]) -> str:
         """Extract strategy from command line arguments."""
         try:
             # Find the --strategy argument
@@ -459,7 +473,7 @@ class ExperimentRunner:
                         accuracy = float(match.group(4))
                         
                         metric_prefix = "eval_" if pattern_name == 'client_validation' else ""
-                          metrics_to_add.extend([
+                        metrics_to_add.extend([
                             {
                                 "algorithm": actual_strategy,
                                 "attack": attack_name,
@@ -489,7 +503,7 @@ class ExperimentRunner:
                         accuracy = float(match.group(3))
                         
                         metric_prefix = "eval_" if pattern_name == 'client_eval' else ""
-                          metrics_to_add.extend([
+                        metrics_to_add.extend([
                             {
                                 "algorithm": actual_strategy,
                                 "attack": attack_name,
@@ -521,7 +535,7 @@ class ExperimentRunner:
                             metric_name = "server_loss"
                         else:
                             metric_name = "server_accuracy"
-                          metrics_to_add.append({
+                        metrics_to_add.append({
                             "algorithm": actual_strategy,
                             "attack": attack_name,
                             "dataset": config.dataset,

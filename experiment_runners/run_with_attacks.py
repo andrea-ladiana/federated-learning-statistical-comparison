@@ -167,7 +167,6 @@ def main():
     # FLANDERS baseline parameters
     parser.add_argument("--to-keep", type=float, default=0.6,
                        help="Fraction of clients to keep for FLANDERS (default: 0.6)")
-    
     # FedOpt baseline parameters
     parser.add_argument("--fedopt-tau", type=float, default=1e-3,
                        help="Tau parameter for FedOpt (default: 1e-3)")
@@ -177,7 +176,8 @@ def main():
                        help="Beta2 parameter for FedOpt (default: 0.99)")
     parser.add_argument("--fedopt-eta", type=float, default=1e-3,
                        help="Eta parameter for FedOpt (default: 1e-3)")
-    parser.add_argument("--fedopt-eta-l", type=float, default=1e-3,                       help="Eta_l parameter for FedOpt (default: 1e-3)")
+    parser.add_argument("--fedopt-eta-l", type=float, default=1e-3,
+                       help="Eta_l parameter for FedOpt (default: 1e-3)")
     
     args = parser.parse_args()
       # Handle server learning rate parameter compatibility

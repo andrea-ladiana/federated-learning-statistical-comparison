@@ -705,10 +705,11 @@ class EnhancedExperimentRunner:
                 total_clients = config.num_clients
                 noise_fraction = min(value / total_clients, 1.0)
                 cmd.extend(["--noise-fraction", str(noise_fraction)])
-            else:
+            else:                
                 mapped_param = attack_param_mapping.get(param, param.replace('_', '-'))
                 cmd.extend([f"--{mapped_param}", str(value)])
-          # Add strategy parameters with proper mapping
+        
+        # Add strategy parameters with proper mapping
         strategy_param_mapping = {
             "proximal_mu": "proximal-mu",
             "server_learning_rate": "learning-rate", 
@@ -725,6 +726,11 @@ class EnhancedExperimentRunner:
             "fedopt_beta2": "fedopt-beta2",
             "fedopt_eta": "fedopt-eta",
             "fedopt_eta_l": "fedopt-eta-l",
+            # FedOpt parameters with underscore names (used in config)
+            "beta_1": "fedopt-beta1",
+            "beta_2": "fedopt-beta2",
+            "eta": "fedopt-eta",
+            "eta_l": "fedopt-eta-l",
         }
         
         for param, value in config.strategy_params.items():
