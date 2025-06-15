@@ -47,6 +47,7 @@ desktop.ini
 **/desktop.ini
 .DS_Store
 Thumbs.db
+docs/
 
 # Output and log files
 *.log
