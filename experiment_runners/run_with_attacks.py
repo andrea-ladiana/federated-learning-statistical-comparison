@@ -135,10 +135,11 @@ def main():
     # FedProx
     parser.add_argument("--proximal-mu", type=float, default=0.01, 
                        help="Parametro mu per FedProx (default: 0.01)")
-    
-    # FedAdam
+      # FedAdam
     parser.add_argument("--learning-rate", type=float, default=0.1, 
                        help="Learning rate lato server per FedAdam (default: 0.1)")
+    parser.add_argument("--server-learning-rate", type=float, default=0.1, 
+                       help="Server learning rate (alias for --learning-rate)")
     
     # FedAvgM
     parser.add_argument("--server-momentum", type=float, default=0.9, 
@@ -176,10 +177,16 @@ def main():
                        help="Beta2 parameter for FedOpt (default: 0.99)")
     parser.add_argument("--fedopt-eta", type=float, default=1e-3,
                        help="Eta parameter for FedOpt (default: 1e-3)")
-    parser.add_argument("--fedopt-eta-l", type=float, default=1e-3,
-                       help="Eta_l parameter for FedOpt (default: 1e-3)")
+    parser.add_argument("--fedopt-eta-l", type=float, default=1e-3,                       help="Eta_l parameter for FedOpt (default: 1e-3)")
     
     args = parser.parse_args()
+      # Handle server learning rate parameter compatibility
+    # If --server-learning-rate is provided, use it; otherwise use --learning-rate
+    # This ensures compatibility with both parameter names
+    effective_learning_rate = args.learning_rate
+    if hasattr(args, 'server_learning_rate') and args.server_learning_rate != 0.1:
+        effective_learning_rate = args.server_learning_rate
+    args.learning_rate = effective_learning_rate
     
     # Configura gli attacchi in base all'argomento
     configure_attacks(args)    # Avvia il server in un processo separato

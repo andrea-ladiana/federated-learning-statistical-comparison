@@ -61,8 +61,7 @@ class ExperimentConfig:
     def to_dict(self) -> Dict[str, Any]:
         """Converte la configurazione in dizionario."""
         return {
-            'strategy': self.strategy,
-            'attack': self.attack,
+            'strategy': self.strategy,            'attack': self.attack,
             'dataset': self.dataset,
             'attack_params': self.attack_params,
             'strategy_params': self.strategy_params,
@@ -74,7 +73,8 @@ class ExperimentConfig:
         """Genera un ID univoco per l'esperimento."""
         attack_str = f"{self.attack}"
         if self.attack_params:
-            params_str = "_".join([f"{k}{v}" for k, v in self.attack_params.items()])
+            # CRITICAL FIX: Sort parameters to ensure consistent ID generation
+            params_str = "_".join([f"{k}{v}" for k, v in sorted(self.attack_params.items())])
             attack_str += f"_{params_str}"
         
         return f"{self.strategy}_{attack_str}_{self.dataset}"

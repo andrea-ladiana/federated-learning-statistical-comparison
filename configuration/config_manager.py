@@ -40,8 +40,8 @@ class SystemConfig:
 @dataclass
 class ExperimentDefaults:
     """Configurazioni predefinite per esperimenti."""
-    num_rounds: int = 3
-    num_clients: int = 10
+    num_rounds: int = 1
+    num_clients: int = 2
     learning_rate: float = 0.01
     batch_size: int = 32
     local_epochs: int = 1

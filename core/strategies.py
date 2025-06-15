@@ -69,7 +69,7 @@ def create_strategy(
         **kwargs
     }
     if strategy_name == "fedavg":
-        return CustomFedAvg(**common_kwargs)
+        return CustomFedAvg(**common_kwargs)    
     elif strategy_name == "fedavgm":
         # Parametro specifico per FedAvgM
         server_momentum = kwargs.get("server_momentum", 0.9)
@@ -79,7 +79,9 @@ def create_strategy(
     elif strategy_name == "fedprox":
         # Parametro specifico per FedProx
         proximal_mu = kwargs.get("proximal_mu", 0.01)
-        return CustomFedProx(**common_kwargs, proximal_mu=proximal_mu)
+        # Remove proximal_mu from common_kwargs to avoid duplicate parameter
+        fedprox_kwargs = {k: v for k, v in common_kwargs.items() if k != "proximal_mu"}
+        return CustomFedProx(proximal_mu=proximal_mu, **fedprox_kwargs)
     elif strategy_name == "fednova":
         return CustomFedNova(**common_kwargs)
     elif strategy_name == "scaffold":
@@ -87,37 +89,50 @@ def create_strategy(
     elif strategy_name == "fedadam":
         # Parametro specifico per FedAdam
         server_learning_rate = kwargs.get("server_learning_rate", 0.1)
-        return CustomFedAdam(**common_kwargs, server_learning_rate=server_learning_rate)
+        # Remove server_learning_rate from common_kwargs to avoid duplicate parameter
+        fedadam_kwargs = {k: v for k, v in common_kwargs.items() if k != "server_learning_rate"}
+        return CustomFedAdam(server_learning_rate=server_learning_rate, **fedadam_kwargs)
     elif strategy_name == "krum":
         # Parametro specifico per Krum
         num_byzantine = kwargs.get("num_byzantine", 0)
-        return CustomKrum(**common_kwargs, num_byzantine=num_byzantine)
+        # Remove num_byzantine from common_kwargs to avoid duplicate parameter
+        krum_kwargs = {k: v for k, v in common_kwargs.items() if k != "num_byzantine"}
+        return CustomKrum(num_byzantine=num_byzantine, **krum_kwargs)
     elif strategy_name == "trimmedmean":
         # Parametro specifico per TrimmedMean
         beta = kwargs.get("beta", 0.1)
-        return CustomTrimmedMean(**common_kwargs, beta=beta)
+        # Remove beta from common_kwargs to avoid duplicate parameter
+        trimmedmean_kwargs = {k: v for k, v in common_kwargs.items() if k != "beta"}
+        return CustomTrimmedMean(beta=beta, **trimmedmean_kwargs)
     elif strategy_name == "bulyan":
         # Parametro specifico per Bulyan
         num_byzantine = kwargs.get("num_byzantine", 0)
-        return CustomBulyan(**common_kwargs, num_byzantine=num_byzantine)
-    # Baseline wrapper strategies
+        # Remove num_byzantine from common_kwargs to avoid duplicate parameter
+        bulyan_kwargs = {k: v for k, v in common_kwargs.items() if k != "num_byzantine"}
+        return CustomBulyan(num_byzantine=num_byzantine, **bulyan_kwargs)    # Baseline wrapper strategies
     elif strategy_name == "dasha":
         # DASHA specific parameters
         step_size = kwargs.get("step_size", 0.5)
         compressor_coords = kwargs.get("compressor_coords", 10)
-        return BaseDashaWrapper(**common_kwargs, step_size=step_size, compressor_coords=compressor_coords)
+        # Remove dasha-specific parameters from common_kwargs to avoid duplicate parameter
+        dasha_kwargs = {k: v for k, v in common_kwargs.items() if k not in ["step_size", "compressor_coords"]}
+        return BaseDashaWrapper(**dasha_kwargs, step_size=step_size, compressor_coords=compressor_coords)
     elif strategy_name == "depthfl":
         # DepthFL specific parameters
         alpha = kwargs.get("alpha", 0.75)
         tau = kwargs.get("tau", 0.6)
-        return BaseDepthFLWrapper(**common_kwargs, alpha=alpha, tau=tau)
+        # Remove depthfl-specific parameters from common_kwargs to avoid duplicate parameter
+        depthfl_kwargs = {k: v for k, v in common_kwargs.items() if k not in ["alpha", "tau"]}
+        return BaseDepthFLWrapper(**depthfl_kwargs, alpha=alpha, tau=tau)
     elif strategy_name == "heterofl":
         # HeteroFL specific parameters
         return BaseHeteroFLWrapper(**common_kwargs)
     elif strategy_name == "fedmeta":
         # FedMeta specific parameters
         beta = kwargs.get("beta", 1.0)
-        return BaseFedMetaWrapper(**common_kwargs, beta=beta)
+        # Remove fedmeta-specific parameters from common_kwargs to avoid duplicate parameter
+        fedmeta_kwargs = {k: v for k, v in common_kwargs.items() if k != "beta"}
+        return BaseFedMetaWrapper(**fedmeta_kwargs, beta=beta)
     elif strategy_name == "fedper":
         # FedPer specific parameters
         return BaseFedPerWrapper(**common_kwargs)
@@ -127,7 +142,9 @@ def create_strategy(
     elif strategy_name == "flanders":
         # FLANDERS specific parameters
         to_keep = kwargs.get("to_keep", 0.6)
-        return BaseFlandersWrapper(**common_kwargs, to_keep=to_keep)
+        # Remove flanders-specific parameters from common_kwargs to avoid duplicate parameter
+        flanders_kwargs = {k: v for k, v in common_kwargs.items() if k != "to_keep"}
+        return BaseFlandersWrapper(**flanders_kwargs, to_keep=to_keep)
     elif strategy_name == "fedopt":
         # FedOpt specific parameters
         tau = kwargs.get("tau", 1e-3)
@@ -135,7 +152,9 @@ def create_strategy(
         beta_2 = kwargs.get("beta_2", 0.99)
         eta = kwargs.get("eta", 1e-3)
         eta_l = kwargs.get("eta_l", 1e-3)
-        return BaseFedOptWrapper(**common_kwargs, tau=tau, beta_1=beta_1, beta_2=beta_2, eta=eta, eta_l=eta_l)
+        # Remove fedopt-specific parameters from common_kwargs to avoid duplicate parameter
+        fedopt_kwargs = {k: v for k, v in common_kwargs.items() if k not in ["tau", "beta_1", "beta_2", "eta", "eta_l"]}
+        return BaseFedOptWrapper(**fedopt_kwargs, tau=tau, beta_1=beta_1, beta_2=beta_2, eta=eta, eta_l=eta_l)
     else:
         raise ValueError(f"Unknown strategy name: {strategy_name}")
 

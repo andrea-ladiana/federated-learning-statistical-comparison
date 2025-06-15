@@ -256,8 +256,7 @@ class CheckpointManager:
                 
                 self.experiment_status = {
                     exp_id: ExperimentStatus.from_dict(data)
-                    for exp_id, data in status_data.items()
-                }
+                    for exp_id, data in status_data.items()                }
                 logger.info(f"Loaded {len(self.experiment_status)} experiment statuses")
             
             # Carica configurazioni
@@ -282,7 +281,8 @@ class CheckpointManager:
         attack_str = attack
         attack_params = config.get('attack_params', {})
         if attack_params:
-            params_str = "_".join([f"{k}{v}" for k, v in attack_params.items()])
+            # CRITICAL FIX: Sort parameters to ensure consistent ID generation
+            params_str = "_".join([f"{k}{v}" for k, v in sorted(attack_params.items())])
             attack_str += f"_{params_str}"
         
         return f"{strategy}_{attack_str}_{dataset}"

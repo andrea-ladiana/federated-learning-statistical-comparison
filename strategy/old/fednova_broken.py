@@ -12,6 +12,7 @@ from utilities.utils import BaseStrategy, parameters_to_ndarrays, ndarrays_to_pa
 EvaluateFnType = Callable[[int, NDArrays, Dict[str, Scalar]], Optional[Tuple[float, Dict[str, Scalar]]]]
 
 
+
 # FedNova Strategy Implementation
 class FedNova(FedAvg):
     """Federated Normalized Averaging strategy implementation.
@@ -69,9 +70,7 @@ class FedNova(FedAvg):
             fit_ins.config["track_local_steps"] = True
             fit_ins.config["round"] = server_round
         
-        return client_instructions
-
-    def aggregate_fit(
+        return client_instructions    def aggregate_fit(
         self,
         server_round: int,
         results: List[Tuple[ClientProxy, FitRes]],
@@ -226,3 +225,6 @@ class CustomFedNova(FedNova, BaseStrategy):
         
         # Return the original result to preserve Flower's internal state
         return aggregated_loss, metrics
+
+
+

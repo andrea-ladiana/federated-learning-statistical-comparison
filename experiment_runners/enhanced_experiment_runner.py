@@ -536,18 +536,17 @@ class EnhancedExperimentRunner:
                 if result.returncode != 0:
                     logger.warning("run_with_attacks.py is not responding correctly")
             except Exception as e:
-                logger.warning(f"Error testing run_with_attacks.py: {e}")
-        
+                logger.warning(f"Error testing run_with_attacks.py: {e}")        
         # Check port availability
         if not self.port_manager.is_port_free(self.system_config.port):
             logger.warning(f"Port {self.system_config.port} is not free, will attempt cleanup")
-        
         logger.info("Prerequisites validation completed")
         return True
-    
+        
     def kill_flower_processes(self):
         """Termina tutti i processi Flower in esecuzione."""
         try:
+            killed_processes = []
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
                     if 'python' in proc.info['name'].lower():
@@ -555,19 +554,102 @@ class EnhancedExperimentRunner:
                         if any(keyword in cmdline.lower() for keyword in 
                                ['flower', 'server.py', 'client.py', 'run_with_attacks.py']):
                             logger.debug(f"Killing process {proc.info['pid']}: {cmdline}")
-                            proc.kill()
+                            
+                            # Try graceful termination first
+                            try:
+                                proc.terminate()
+                                killed_processes.append(proc)
+                            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                continue
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
-            time.sleep(2)  # Grace period
+            
+            # Wait for graceful termination
+            time.sleep(3)
+            
+            # Force kill any remaining processes
+            for proc in killed_processes:
+                try:
+                    if proc.is_running():
+                        logger.warning(f"Force killing process {proc.pid}")
+                        proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            # Additional cleanup: kill processes using port 8080
+            if not self.port_manager.is_port_free(8080):
+                logger.warning("Port 8080 still in use, attempting to kill processes using it")
+                self._kill_processes_using_port(8080)
+                time.sleep(2)
+                
         except Exception as e:
             logger.warning(f"Error killing processes: {e}")
+            
+    def _kill_processes_using_port(self, port: int):
+        """Termina i processi che stanno usando una porta specifica."""
+        try:
+            import subprocess
+            if os.name == 'nt':  # Windows
+                # Use netstat to find processes using the port
+                result = subprocess.run(['netstat', '-ano'], 
+                                      capture_output=True, text=True, timeout=10)
+                lines = result.stdout.split('\n')
+                pids = set()
+                
+                for line in lines:
+                    if f':{port}' in line and 'LISTENING' in line:
+                        parts = line.split()
+                        if len(parts) >= 5:
+                            try:
+                                pid = int(parts[-1])
+                                pids.add(pid)
+                            except ValueError:
+                                continue
+                
+                # Kill the processes
+                for pid in pids:
+                    try:
+                        proc = psutil.Process(pid)
+                        logger.debug(f"Killing process {pid} using port {port}")
+                        proc.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+            else:  # Unix/Linux
+                result = subprocess.run(['lsof', '-t', '-i', f':{port}'], 
+                                      capture_output=True, text=True, timeout=10)
+                pids = result.stdout.strip().split('\n')
+                for pid_str in pids:
+                    if pid_str:
+                        try:
+                            pid = int(pid_str)
+                            proc = psutil.Process(pid)
+                            logger.debug(f"Killing process {pid} using port {port}")
+                            proc.kill()
+                        except (ValueError, psutil.NoSuchProcess, psutil.AccessDenied):
+                            continue
+        except Exception as e:            logger.warning(f"Error killing processes using port {port}: {e}")
+            
     def wait_for_port(self, port: int, timeout: int = 60):
         """Attende che una porta diventi libera."""
         start_time = time.time()
+        cleanup_attempted = False
+        
         while time.time() - start_time < timeout:
             if self.port_manager.is_port_free(port):
+                logger.info(f"Port {port} is now free")
                 return
+                
+            # If we've waited more than 30 seconds and haven't tried cleanup yet
+            if time.time() - start_time > 30 and not cleanup_attempted:
+                logger.warning(f"Port {port} still busy after 30s, attempting cleanup")
+                self._kill_processes_using_port(port)
+                cleanup_attempted = True
+                time.sleep(5)  # Give some time for cleanup
+                continue
+                
+            logger.info(f"Waiting for port {port} to be free...")
             time.sleep(1)
+            
         raise TimeoutError(f"Port {port} did not become free within {timeout} seconds")
     def build_attack_command(self, config: EnhancedExperimentConfig, port: int) -> List[str]:
         """Costruisce il comando per eseguire un esperimento."""
@@ -590,15 +672,46 @@ class EnhancedExperimentRunner:
             "--num-clients", str(config.num_clients)
         ]
 
+          # Add attack parameters with proper mapping
+        attack_param_mapping = {
+            "noise_variance": "noise-std",
+            "noise_std": "noise-std", 
+            "affected_clients": "noise-fraction",
+            "noise_fraction": "noise-fraction",
+            "missed_prob": "missed-prob",
+            "class_removal_prob": "missed-prob",
+            "failure_prob": "failure-prob",
+            "asymmetry_min": "asymmetry-min",
+            "min_factor": "asymmetry-min",
+            "asymmetry_max": "asymmetry-max", 
+            "max_factor": "asymmetry-max",
+            "labelflip_fraction": "labelflip-fraction",
+            "attack_fraction": "labelflip-fraction",
+            "flip_prob": "flip-prob",
+            "flip_probability": "flip-prob",
+            "source_class": "source-class",
+            "fixed_source": "source-class",
+            "target_class": "target-class", 
+            "fixed_target": "target-class",
+            "gradflip_fraction": "gradflip-fraction",
+            "gradflip_intensity": "gradflip-intensity",
+            "flip_intensity": "gradflip-intensity"
+        }
         
-        # Add attack parameters
         for param, value in config.attack_params.items():
-            cmd.extend([f"--{param.replace('_', '-')}", str(value)])
-        
-        # Add strategy parameters with proper mapping
+            # Handle special cases for parameter conversion
+            if param == "affected_clients":
+                # Convert affected_clients to noise_fraction (as a ratio)
+                total_clients = config.num_clients
+                noise_fraction = min(value / total_clients, 1.0)
+                cmd.extend(["--noise-fraction", str(noise_fraction)])
+            else:
+                mapped_param = attack_param_mapping.get(param, param.replace('_', '-'))
+                cmd.extend([f"--{mapped_param}", str(value)])
+          # Add strategy parameters with proper mapping
         strategy_param_mapping = {
             "proximal_mu": "proximal-mu",
-            "server_learning_rate": "server-learning-rate", 
+            "server_learning_rate": "learning-rate", 
             "server_momentum": "server-momentum",
             "num_byzantine": "num-byzantine",
             "beta": "beta",
@@ -729,6 +842,7 @@ class EnhancedExperimentRunner:
         """Esecuzione interna dell'esperimento (senza retry)."""
         with self.port_manager.get_port() as port:
             return self.run_single_experiment_with_port(config, run_id, port)
+    
     def _extract_strategy_from_command(self, command: List[str]) -> str:
         """Extract strategy from command line arguments using regex."""
         try:
@@ -738,13 +852,16 @@ class EnhancedExperimentRunner:
                     return command[i + 1]
             return "fedavg"  # Default fallback
         except Exception:
-                        return "fedavg"  # Safe fallback
+            return "fedavg"  # Safe fallback
     
     def parse_and_store_metrics(self, log_line: str, config: EnhancedExperimentConfig, run_id: int) -> None:
         """Analizza una riga di output e memorizza le metriche rilevanti."""
         try:
             # Utilizza _actual_strategy se disponibile, altrimenti config.strategy
             current_strategy = getattr(config, '_actual_strategy', config.strategy)
+            
+            # Get attack name with parameters for complete identification
+            attack_with_params = config.get_attack_name_with_params()
             
             # Track round numbers from log
             round_match = re.search(r"\[ROUND (\d+)\]", log_line)
@@ -763,7 +880,7 @@ class EnhancedExperimentRunner:
                 for metric_name, metric_value in metric_matches:
                     new_row = {
                         "algorithm": current_strategy,
-                        "attack": config.attack,
+                        "attack": attack_with_params,
                         "dataset": config.dataset,
                         "run": run_id,
                         "client_id": "server",
@@ -786,7 +903,7 @@ class EnhancedExperimentRunner:
                 for metric_name, metric_value in metric_matches:
                     new_row = {
                         "algorithm": current_strategy,
-                        "attack": config.attack,
+                        "attack": attack_with_params,
                         "dataset": config.dataset,
                         "run": run_id,
                         "client_id": "server",
@@ -813,7 +930,7 @@ class EnhancedExperimentRunner:
                     
                     new_row = {
                         "algorithm": current_strategy,
-                        "attack": config.attack,
+                        "attack": attack_with_params,
                         "dataset": config.dataset,
                         "run": run_id,
                         "client_id": client_id,
@@ -840,7 +957,7 @@ class EnhancedExperimentRunner:
                     
                     new_row = {
                         "algorithm": current_strategy,
-                        "attack": config.attack,
+                        "attack": attack_with_params,
                         "dataset": config.dataset,
                         "run": run_id,
                         "client_id": client_id,

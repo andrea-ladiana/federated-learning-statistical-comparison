@@ -96,17 +96,18 @@ class ExperimentConfig:
         return {
             'strategy': self.strategy,
             'attack': self.attack,
-            'dataset': self.dataset,
-            'attack_params': self.attack_params,
+            'dataset': self.dataset,            'attack_params': self.attack_params,
             'strategy_params': self.strategy_params,
             'num_rounds': self.num_rounds,
-            'num_clients': self.num_clients        }
+            'num_clients': self.num_clients
+        }
     
     def get_experiment_id(self) -> str:
         """Genera un ID univoco per l'esperimento."""
         attack_str = f"{self.attack}"
         if self.attack_params:
-            params_str = "_".join([f"{k}{v}" for k, v in self.attack_params.items()])
+            # CRITICAL FIX: Sort parameters to ensure consistent ID generation
+            params_str = "_".join([f"{k}{v}" for k, v in sorted(self.attack_params.items())])
             attack_str += f"_{params_str}"
         
         return f"{self.strategy}_{attack_str}_{self.dataset}"
