@@ -6,6 +6,9 @@ FedAVG3/
 # Strategy old files
 strategy/old/
 
+# Maintenance files
+maintenance/
+
 # Dataset files and directories
 *.tar.gz
 *.tar
