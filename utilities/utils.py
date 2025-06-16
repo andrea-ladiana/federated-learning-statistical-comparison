@@ -73,6 +73,18 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
         if not weights or not normalization_factors or len(weights) != len(normalization_factors):
             logger.error("Invalid inputs to aggregate_ndarrays_weighted")
             return []
+
+        # Ensure all normalization factors are non-negative
+        if not all(f >= 0 for f in normalization_factors):
+            logger.error("Normalization factors must be non-negative")
+            return []
+
+        # Normalize factors so that they sum to 1
+        total_factor = sum(normalization_factors)
+        if total_factor <= 0:
+            logger.error("Sum of normalization factors must be positive")
+            return []
+        normalization_factors = [f / total_factor for f in normalization_factors]
         
         # Create a list of empty ndarrays, one for each layer
         aggregated_ndarrays = [
