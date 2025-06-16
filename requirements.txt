@@ -9,3 +9,4 @@ psutil
 omegaconf
 pyhamcrest
 pytest
+pynvml

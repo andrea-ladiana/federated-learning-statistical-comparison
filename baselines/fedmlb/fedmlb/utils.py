@@ -7,6 +7,15 @@ from os import PathLike
 from secrets import token_hex
 from typing import Dict, Union
 
+try:
+    import pynvml  # type: ignore
+    _NVML_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    pynvml = None
+    _NVML_AVAILABLE = False
+
+_NVML_HANDLE = None
+
 import psutil
 from flwr.server.history import History
 
@@ -76,19 +85,58 @@ def save_results_as_pickle(
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def get_gpu_memory() -> float:
-    """Return gpu free memory."""
-    command = "nvidia-smi --query-gpu=memory.free --format=csv"
-    memory_free_info = (
-        sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
-    )
-    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)][0]
-    memory_percent = (memory_free_values / 24564) * 100
+def _init_nvml() -> None:
+    """Initialize NVML handle if possible."""
+    global _NVML_HANDLE, _NVML_AVAILABLE
+    if not _NVML_AVAILABLE or _NVML_HANDLE is not None:
+        return
+    try:
+        pynvml.nvmlInit()
+        _NVML_HANDLE = pynvml.nvmlDeviceGetHandleByIndex(0)
+    except Exception:  # pragma: no cover - NVML may not be available
+        _NVML_AVAILABLE = False
+        _NVML_HANDLE = None
+
+
+def _gpu_memory_via_nvml() -> float:
+    """Return GPU free memory in MB using NVML."""
+    _init_nvml()
+    if not _NVML_AVAILABLE or _NVML_HANDLE is None:
+        raise RuntimeError("NVML not available")
+    mem_info = pynvml.nvmlDeviceGetMemoryInfo(_NVML_HANDLE)
+    memory_free_values = mem_info.free / (1024 * 1024)
+    memory_percent = (memory_free_values / (mem_info.total / (1024 * 1024))) * 100
     print(
-        f"[Memory monitoring] Free memory GPU "
-        f"{memory_free_values} MB, {memory_percent} %."
+        f"[Memory monitoring] Free memory GPU {memory_free_values} MB, {memory_percent} %."
     )
-    return memory_free_values
+    return float(memory_free_values)
+
+
+def _gpu_memory_via_smi() -> float:
+    """Return GPU free memory in MB using nvidia-smi command."""
+    command = "nvidia-smi --query-gpu=memory.free --format=csv,nounits,noheader"
+    memory_free_info = sp.check_output(command.split()).decode("ascii").strip()
+    memory_free_value = float(memory_free_info.split("\n")[0])
+    # The total memory is unknown; assume 24GB to keep previous behaviour
+    memory_percent = (memory_free_value / 24564) * 100
+    print(
+        f"[Memory monitoring] Free memory GPU {memory_free_value} MB, {memory_percent} %."
+    )
+    return memory_free_value
+
+
+def get_gpu_memory() -> float:
+    """Return GPU free memory in MB."""
+    if _NVML_AVAILABLE:
+        try:
+            return _gpu_memory_via_nvml()
+        except Exception:  # pragma: no cover - fallback to nvidia-smi
+            pass
+    try:
+        return _gpu_memory_via_smi()
+    except Exception as exc:  # pragma: no cover - last resort
+        print(f"[Memory monitoring] Cannot read GPU memory: {exc}")
+        return 0.0
 
 
 def get_cpu_memory() -> float:
