@@ -13,25 +13,7 @@ A comprehensive federated learning framework built on top of the Flower library,
 - **Advanced Utilities** including checkpoint management, retry mechanisms, and resource monitoring
 - **Educational Documentation** with scientific references and compliance reports
 
-## 📁 Recent Reorganization & Architecture
 
-> 🆕 **Major Update**: This codebase has been completely reorganized for better maintainability and clarity!
-
-**What's New:**
-- **🏛️ Organized Structure**: Files grouped into logical directories (`core/`, `experiment_runners/`, `configuration/`, `utilities/`, `scripts/`)
-- **🚀 Enhanced Experiment Runner**: Advanced parallel execution with checkpointing, resource monitoring, and intelligent retry mechanisms
-- **⚡ Configuration Management**: Centralized YAML-based configuration with validation and environment management
-- **📊 Advanced Monitoring**: Real-time experiment monitoring with resource tracking and progress visualization
-- **🔧 Improved Setup**: Streamlined setup with automated testing and environment validation
-- **🛡️ Attack Framework**: Modular attack implementations with comprehensive documentation
-- **📈 Utilities**: Checkpoint management, retry handling, and analysis tools
-
-**Key Components:**
-- **Enhanced Experiment Runner**: Supports parallel execution, automatic checkpointing, and intelligent error recovery
-- **Configuration System**: YAML-based configuration with environment-specific settings and validation
-- **Attack Framework**: Six attack types with modular, well-documented implementations
-- **Strategy Compliance**: All strategies validated against original research papers with compliance reports
-- **Monitoring Tools**: Real-time resource monitoring and experiment progress tracking
 
 ## Table of Contents
 
@@ -200,9 +182,6 @@ python experiment_runners/run_with_attacks.py --strategy fedavg --dataset cifar1
 ```bash
 # Quick setup and environment check
 python setup.py
-
-# Detailed setup with testing (if available locally)
-# python maintenance/setup_and_test.py
 
 # Verify models work after reorganization
 python scripts/verify_models.py
@@ -625,14 +604,6 @@ All experimental results include:
 - **Environment information** including library versions
 - **Execution metadata** with timestamps and system information
 
-### Performance Benchmarks *(in progress)*
-
-> **Nota:** al momento non abbiamo ancora completato una campagna di benchmark.
-> I dati presenti nella versione precedente di questa sezione erano esclusivamente
-> esempi dimostrativi e non riflettevano risultati reali.
-> Stiamo lavorando per generare misurazioni attendibili; i benchmark ufficiali
-> verranno pubblicati non appena saranno disponibili.
-
 ### Research Applications
 
 This framework has been used for:
@@ -678,10 +649,6 @@ This framework has been used for:
 
 This framework implements algorithms from established research papers. For detailed information about the theoretical foundations and original implementations, please refer to the scientific literature cited in the code documentation.
 
-### Reports
-
-- **STRATEGY_COMPLIANCE_REPORT.md:** Analysis of strategy implementations
-- **BASELINE_INTEGRATION_REPORT.md:** Baseline integration status and results
 
 ### Examples and Tutorials
 
@@ -775,22 +742,6 @@ python -m cProfile experiment_runner.py --test-mode > profile.txt
 3. **Documentation**: Document custom configurations and findings
 4. **Resource management**: Monitor CPU/GPU usage during large studies
 
-### Research Workflow
-```bash
-# 1. Quick verification
-python experiment_runner.py --test-mode --num-runs 2
-
-# 2. Full experimental study
-python experiment_runner.py --num-runs 10 --results-dir study_2025
-
-# 3. Analysis and visualization
-python results_analyzer.py study_2025/final_results_*.csv
-
-# 4. Statistical significance testing
-python -c "from results_analyzer import ResultsAnalyzer; \
-           analyzer = ResultsAnalyzer('study_2025/final_results_*.csv'); \
-           print(analyzer.statistical_analysis())"
-```
 
 ## License
 
@@ -844,35 +795,7 @@ For questions, issues, or contributions:
 **Compatibility**: Python 3.8+, PyTorch 1.9+, Flower 1.0+  
 **Status**: Active development and maintenance  
 
-## 📝 Recent Updates & Changelog
 
-### 🆕 Major Reorganization (Latest)
-
-**What Changed:**
-- **📁 Complete File Reorganization**: Moved from flat structure to organized directories
-- **🚀 New Unified Interface**: `run_experiments.py` provides easy access to all runners
-- **⚡ Enhanced Experiment Runners**: New parallel execution, checkpoints, and monitoring
-- **🔧 Better Setup Process**: Streamlined installation and verification scripts
-- **📊 Advanced Monitoring**: Real-time experiment tracking and analysis tools 
-
-**New Directory Structure:**
-```
-├── core/                    # Core FL components (server, client, strategies)
-├── experiment_runners/      # All experiment execution scripts
-├── configuration/          # Configuration files and managers
-├── utilities/              # Support utilities (checkpoints, retry, etc.)
-├── scripts/                # Monitoring and analysis scripts  
-└── [existing directories]  # Models, strategies, attacks, baselines unchanged
-```
-
-**Migration Benefits:**
-- ✅ **Better Organization**: Logical grouping of related functionality
-- ✅ **Easier Maintenance**: Clear separation of concerns
-- ✅ **Enhanced Features**: New parallel execution and monitoring capabilities
-- ✅ **Backward Compatibility**: All original functionality preserved
-- ✅ **Better Documentation**: Comprehensive guides and examples
-
-**For detailed migration information, see [REORGANIZATION_GUIDE.md](REORGANIZATION_GUIDE.md)**
 
 ---
 
