@@ -6,6 +6,14 @@ import numpy as np
 import logging
 import io
 
+# ---------------------------------------------------------------------------
+# Exception classes
+# ---------------------------------------------------------------------------
+
+class ParameterConversionError(RuntimeError):
+    """Raised when converting model parameters fails."""
+
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("strategies")
@@ -14,14 +22,18 @@ logger = logging.getLogger("strategies")
 EvaluateFnType = Callable[[int, NDArrays, Dict[str, Scalar]], Optional[Tuple[float, Dict[str, Scalar]]]]
 
 def parameters_to_ndarrays(parameters: Parameters) -> List[np.ndarray]:
-    """Convert parameters to numpy ndarrays with improved error handling."""
+    """Convert parameters to numpy ndarrays.
+
+    Raises ``ParameterConversionError`` if the conversion fails.
+    """
     try:
-        # Assuming parameters.tensors contains bytes in .npy format
-        return [np.load(io.BytesIO(param_bytes), allow_pickle=False) for param_bytes in parameters.tensors]
+        return [
+            np.load(io.BytesIO(param_bytes), allow_pickle=False)
+            for param_bytes in parameters.tensors
+        ]
     except Exception as e:
         logger.error(f"Error converting parameters to ndarrays: {str(e)}")
-        # Return empty list or default parameters if conversion fails
-        return []
+        raise ParameterConversionError(str(e)) from e
 
 def ndarrays_to_parameters(ndarrays: List[np.ndarray]) -> Parameters:
     """Convert numpy ndarrays to parameters with improved error handling."""

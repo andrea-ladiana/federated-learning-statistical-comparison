@@ -5,6 +5,8 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, ROOT_DIR)
 
 import numpy as np
+import pytest
+from flwr.common import Parameters
 
 import utilities.utils as utils
 
@@ -60,9 +62,16 @@ def test_aggregate_ndarrays_weighted_negative_factor():
     assert result == []
 
 
+def test_parameters_to_ndarrays_invalid_bytes():
+    params = Parameters(tensors=[b"invalid"], tensor_type="numpy.ndarray")
+    with pytest.raises(utils.ParameterConversionError):
+        utils.parameters_to_ndarrays(params)
+
+        
 def test_safe_aggregate_parameters_shape_mismatch():
     p1 = utils.ndarrays_to_parameters([np.ones((2, 2))])
     p2 = utils.ndarrays_to_parameters([np.ones((3, 3))])
     aggregated = utils.safe_aggregate_parameters([p1, p2])
     assert aggregated.tensors == []
+
 
