@@ -1,0 +1,19 @@
+defaults:
+  batch_size: 32
+  learning_rate: 0.01
+  local_epochs: 1
+  num_clients: 10
+  num_rounds: 10
+resources:
+  disk_space_threshold_mb: 1024
+  max_cpu_percent: 80.0
+  max_memory_mb: 8192
+  max_parallel_experiments: 1
+system:
+  checkpoint_backup_interval: 50
+  log_level: INFO
+  max_backups: 10
+  max_retries: 3
+  port: 8080
+  process_timeout: 600
+  retry_delay: 5
