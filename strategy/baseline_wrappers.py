@@ -13,10 +13,13 @@ from typing import Dict, List, Optional, Tuple, Union, Any, Type, Callable
 from flwr.common.typing import NDArrays
 from flwr.server.client_proxy import ClientProxy
 from flwr.common import FitRes, EvaluateRes
-import numpy as np
-from utilities.utils import BaseStrategy, parameters_to_ndarrays, ndarrays_to_parameters, aggregate_ndarrays_weighted, logger
-import sys
-import os
+from utilities.utils import (
+    BaseStrategy,
+    parameters_to_ndarrays,
+    ndarrays_to_parameters,
+    aggregate_ndarrays_weighted,
+    logger,
+)
 
 # Correct type for evaluate_fn
 EvaluateFnType = Callable[[int, NDArrays, Dict[str, Scalar]], Optional[Tuple[float, Dict[str, Scalar]]]]

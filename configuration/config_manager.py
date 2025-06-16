@@ -9,7 +9,6 @@ import logging
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-import os
 
 logger = logging.getLogger(__name__)
 
