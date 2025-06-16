@@ -78,6 +78,20 @@ except Exception as e:
     def create_attack_config() -> _FallbackConfig:  # type: ignore
         return _FallbackConfig()
 
+def terminate_process(proc: subprocess.Popen, timeout: int = 5) -> None:
+    """Terminate a subprocess gracefully, killing it if it ignores SIGTERM."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"Process did not terminate in {timeout}s, killing...")
+        proc.kill()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            pass
+
+
 def main():
     parser = argparse.ArgumentParser(description="Avvia esperimenti di FL con attacchi")
     parser.add_argument("--num-clients", type=int, default=10, help="Numero di client da avviare")
@@ -317,8 +331,7 @@ def main():
     
     # Termina il server
     print("Terminazione del server...")
-    server_process.terminate()
-    server_process.wait()
+    terminate_process(server_process)
     
     print("Esperimento completato")
 
