@@ -227,6 +227,7 @@ logging:
         print(f"[WARNING] Could not create example config: {e}")
         return False
 
+
 def print_usage_instructions():
     """Print instructions on how to use the framework."""
     print("\n" + "=" * 60)
