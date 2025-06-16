@@ -13,16 +13,18 @@ from .missed_class import create_missed_class_dataset
 def generate_client_sizes(total_data, num_clients, min_factor, max_factor):
     """
     Genera le dimensioni dei dataset per i client in modo asimmetrico.
-    
+
     Args:
         total_data: Numero totale di dati da distribuire
         num_clients: Numero di client
         min_factor: Fattore minimo per la distribuzione uniforme
         max_factor: Fattore massimo per la distribuzione uniforme
-    
+
     Returns:
         list: Lista delle dimensioni dei dataset per ogni client
     """
+    if min_factor <= 0 or min_factor > max_factor:
+        raise ValueError("0 < min_factor <= max_factor must hold")
     # Se min_factor = max_factor, distribuisci i dati in modo uniforme
     if min_factor == max_factor:
         base_size = total_data // num_clients

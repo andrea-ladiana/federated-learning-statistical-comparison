@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from pathlib import Path
 from torch.utils.data import Dataset
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -34,6 +35,13 @@ def test_generate_client_sizes_zero_handling():
     assert sum(sizes) == 5
     assert len(sizes) == 10
     assert all(s in (0, 1) for s in sizes)
+
+
+def test_generate_client_sizes_invalid_range():
+    with pytest.raises(ValueError):
+        generate_client_sizes(10, 3, -0.5, 1.0)
+    with pytest.raises(ValueError):
+        generate_client_sizes(10, 3, 1.1, 1.0)
 
 
 def test_create_asymmetric_datasets(tmp_path):
