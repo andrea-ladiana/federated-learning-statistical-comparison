@@ -19,21 +19,12 @@ from models import Net, CNNNet, TinyMNIST, MinimalCNN, MiniResNet20, get_transfo
 
 # Importazione delle funzioni di attacco e configurazione
 import utilities.fl_attacks
-from configuration.attack_config import create_attack_config
+from configuration.attack_config import create_attack_config, AttackConfig
 from configuration.config_manager import get_config_manager
 import random
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score
 
-# Load a fresh copy of attack configuration for each client
-attack_cfg = create_attack_config()
-ENABLE_ATTACKS = attack_cfg.enable_attacks
-NOISE_INJECTION = attack_cfg.noise_injection
-MISSED_CLASS = attack_cfg.missed_class
-CLIENT_FAILURE = attack_cfg.client_failure
-DATA_ASYMMETRY = attack_cfg.data_asymmetry
-LABEL_FLIPPING = attack_cfg.label_flipping
-GRADIENT_FLIPPING = attack_cfg.gradient_flipping
 
 # 1) definizione del modello locale
 # - I modelli sono ora importati dal modulo models.py
@@ -41,7 +32,10 @@ GRADIENT_FLIPPING = attack_cfg.gradient_flipping
 # 2) caricamento dei dati
 # - caricamento di MNIST
 # - DataLoader: gestisce il flusso degli esempi di un dataset verso il modello --> carica i dati
-def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST"):
+from typing import Optional
+
+
+def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST", attack_cfg: Optional[AttackConfig] = None):
     """
     Carica i dati per il training e test del client.
 
@@ -82,12 +76,18 @@ def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST
     num_train_examples = 1000
     num_test_examples = 200
     
+    if attack_cfg is None:
+        attack_cfg = create_attack_config()
+
+    ENABLE_ATTACKS = attack_cfg.enable_attacks
+
     # Applicazione degli attacchi se richiesto
     if apply_attacks and ENABLE_ATTACKS:
         # Se il client ID è fornito, possiamo usarlo per determinare quali client attaccare
         client_id = int(cid) if cid is not None else 0
         
         # 4. Data Asymmetry (modifica il numero di esempi per client)
+        DATA_ASYMMETRY = attack_cfg.data_asymmetry
         if DATA_ASYMMETRY["enabled"]:
             # Calcola la dimensione del dataset in base all'asimmetria
             # Usa un approccio semplice: client con id più alto ricevono più dati
@@ -106,6 +106,7 @@ def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST
         train_indices = rng.choice(dataset_size, num_train_examples, replace=replace).tolist()
         
         # 2. Missed Class (rimuove esempi di una certa classe)
+        MISSED_CLASS = attack_cfg.missed_class
         if MISSED_CLASS["enabled"]:
             train_indices, excluded_class = utilities.fl_attacks.create_missed_class_dataset(
                 trainset, train_indices, MISSED_CLASS["class_removal_prob"])
@@ -113,6 +114,7 @@ def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST
                 print(f"[Client {cid}] Missed Class Attack: classe {excluded_class} rimossa")
         
         # 5. Targeted Label-flipping (cambia le etichette da una classe sorgente a una target)
+        LABEL_FLIPPING = attack_cfg.label_flipping
         if LABEL_FLIPPING["enabled"]:
             # Determina se questo client è un target per l'attacco
             clients_to_attack = utilities.fl_attacks.select_clients_for_label_flipping(
@@ -169,13 +171,14 @@ def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST
 # - fase di fit (training locale) --> SGD, lr 0.01, CrossEntropyLoss
 # - fase di evaluate (valutazione modello globale sui client)
 class LoggingClient(fl.client.NumPyClient):
-    def __init__(self, cid: str, num_clients: int, dataset_name: str = "MNIST"):
+    def __init__(self, cid: str, num_clients: int, dataset_name: str = "MNIST", attack_cfg: Optional[AttackConfig] = None):
         self.cid = cid
         self.dataset_name = dataset_name
         self.num_clients = num_clients
+        self.attack_cfg = attack_cfg or create_attack_config()
         self.model = TinyMNIST()  # Using TinyMNIST for all datasets
         # Carica i dati con potenziali attacchi applicati
-        self.trainloader, self.testloader = load_data(cid=cid, num_clients=num_clients, apply_attacks=ENABLE_ATTACKS, dataset_name=dataset_name)
+        self.trainloader, self.testloader = load_data(cid=cid, num_clients=num_clients, apply_attacks=self.attack_cfg.enable_attacks, dataset_name=dataset_name, attack_cfg=self.attack_cfg)
         self.current_round = 0
         print(f"[Client {cid}] Inizializzato con modello TinyMNIST per dataset {dataset_name}")
 
@@ -201,10 +204,10 @@ class LoggingClient(fl.client.NumPyClient):
             self.current_round = current_round
         
         # Implementazione semplificata del Client Failure Attack
-        if ENABLE_ATTACKS and CLIENT_FAILURE["enabled"]:
+        if self.attack_cfg.enable_attacks and self.attack_cfg.client_failure["enabled"]:
             # Semplice check di probabilità diretto
-            if np.random.rand() < CLIENT_FAILURE["failure_prob"]:
-                print(f"[Client {self.cid}] SIMULAZIONE FALLIMENTO (TERMINAZIONE) DURANTE FIT - ROUND {self.current_round} - PROB {CLIENT_FAILURE['failure_prob']}")
+            if np.random.rand() < self.attack_cfg.client_failure["failure_prob"]:
+                print(f"[Client {self.cid}] SIMULAZIONE FALLIMENTO (TERMINAZIONE) DURANTE FIT - ROUND {self.current_round} - PROB {self.attack_cfg.client_failure['failure_prob']}")
                 # Fallimento immediato che termina il client
                 raise SystemExit(f"Client {self.cid} failed (terminated) in round {self.current_round} (fit)")
         
@@ -222,16 +225,16 @@ class LoggingClient(fl.client.NumPyClient):
         y_true, y_pred = [], []
         for batch_idx, (data, target) in enumerate(self.trainloader, 1):
             # 1. Noise Injection Attack
-            if ENABLE_ATTACKS and NOISE_INJECTION["enabled"]:
+            if self.attack_cfg.enable_attacks and self.attack_cfg.noise_injection["enabled"]:
                 # Verifica se questo client è un target per noise injection
                 noise_clients = utilities.fl_attacks.select_clients_for_noise_injection(
-                    self.num_clients, NOISE_INJECTION["attack_fraction"])
+                    self.num_clients, self.attack_cfg.noise_injection["attack_fraction"])
                 
                 if int(self.cid) in noise_clients:
                     # Applica noise injection ai dati
-                    data = utilities.fl_attacks.apply_noise_injection(data, NOISE_INJECTION["noise_std"])
+                    data = utilities.fl_attacks.apply_noise_injection(data, self.attack_cfg.noise_injection["noise_std"])
                     if batch_idx == 1:  # Stampa solo una volta per round
-                        print(f"[Client {self.cid}] Noise Injection Attack: std={NOISE_INJECTION['noise_std']}")
+                        print(f"[Client {self.cid}] Noise Injection Attack: std={self.attack_cfg.noise_injection['noise_std']}")
             
             optimizer.zero_grad()
             output = self.model(data)
@@ -279,10 +282,10 @@ class LoggingClient(fl.client.NumPyClient):
             self.current_round = current_round
         
         # Implementazione semplificata del Client Failure Attack
-        if ENABLE_ATTACKS and CLIENT_FAILURE["enabled"]:
+        if self.attack_cfg.enable_attacks and self.attack_cfg.client_failure["enabled"]:
             # Semplice check di probabilità diretto
-            if np.random.rand() < CLIENT_FAILURE["failure_prob"]:
-                print(f"[Client {self.cid}] SIMULAZIONE FALLIMENTO (TERMINAZIONE) DURANTE EVALUATE - ROUND {self.current_round} - PROB {CLIENT_FAILURE['failure_prob']}")
+            if np.random.rand() < self.attack_cfg.client_failure["failure_prob"]:
+                print(f"[Client {self.cid}] SIMULAZIONE FALLIMENTO (TERMINAZIONE) DURANTE EVALUATE - ROUND {self.current_round} - PROB {self.attack_cfg.client_failure['failure_prob']}")
                 # Fallimento immediato che termina il client
                 raise SystemExit(f"Client {self.cid} failed (terminated) in round {self.current_round} (evaluate)")
         
@@ -351,34 +354,36 @@ if __name__ == "__main__":
                         help="Sovrascrive attack_config.py per impostare la probabilità di Client Failure.")
     
     args = parser.parse_args()
-    
+
+    attack_cfg = create_attack_config()
+
     # Handle global attack enablement switch
     if args.enable_attacks:
-        ENABLE_ATTACKS = True 
+        attack_cfg.enable_attacks = True
         print(f"[Client {args.cid}] Attacchi globalmente ABILITATI via CLI (--enable-attacks).")
     else:
-        if ENABLE_ATTACKS:
-             print(f"[Client {args.cid}] Attacchi globalmente ABILITATI (da attack_config.py; --enable-attacks non usato).")
+        if attack_cfg.enable_attacks:
+            print(f"[Client {args.cid}] Attacchi globalmente ABILITATI (da attack_config.py; --enable-attacks non usato).")
         else:
-             print(f"[Client {args.cid}] Attacchi globalmente DISABILITATI (da attack_config.py; --enable-attacks non usato).")
+            print(f"[Client {args.cid}] Attacchi globalmente DISABILITATI (da attack_config.py; --enable-attacks non usato).")
 
     # Override CLIENT_FAILURE settings if new CLI args are provided
     if args.client_failure_active:
-        CLIENT_FAILURE["enabled"] = True
+        attack_cfg.client_failure["enabled"] = True
         print(f"[Client {args.cid}] Client Failure: 'enabled' IMPOSTATO A TRUE via CLI (--client-failure-active).")
-    
+
     if args.client_failure_probability is not None:
-        CLIENT_FAILURE["failure_prob"] = args.client_failure_probability
-        print(f"[Client {args.cid}] Client Failure: 'failure_prob' IMPOSTATA A {CLIENT_FAILURE['failure_prob']} via CLI (--client-failure-probability).")
+        attack_cfg.client_failure["failure_prob"] = args.client_failure_probability
+        print(f"[Client {args.cid}] Client Failure: 'failure_prob' IMPOSTATA A {attack_cfg.client_failure['failure_prob']} via CLI (--client-failure-probability).")
 
     # Diagnostic print for the effective Client Failure configuration
-    if ENABLE_ATTACKS:
-        if CLIENT_FAILURE["enabled"]:
-            print(f"[Client {args.cid}] Client Failure Attack CONFIGURAZIONE ATTIVA: probabilità={CLIENT_FAILURE['failure_prob']}.")
+    if attack_cfg.enable_attacks:
+        if attack_cfg.client_failure["enabled"]:
+            print(f"[Client {args.cid}] Client Failure Attack CONFIGURAZIONE ATTIVA: probabilità={attack_cfg.client_failure['failure_prob']}.")
         else:
             print(f"[Client {args.cid}] Client Failure Attack CONFIGURAZIONE NON ATTIVA (CLIENT_FAILURE['enabled'] è False).")
     else:
-        print(f"[Client {args.cid}] Client Failure Attack NON ATTIVO (Attacchi globalmente disabilitati tramite ENABLE_ATTACKS=False).")
+        print(f"[Client {args.cid}] Client Failure Attack NON ATTIVO (Attacchi globalmente disabilitati tramite enable_attacks=False).")
     
     # Imposta un seed per la riproducibilità, ma diverso per ogni client
     seed_value = int(args.cid) + 42
@@ -387,7 +392,7 @@ if __name__ == "__main__":
     torch.manual_seed(seed_value)
     print(f"[Client {args.cid}] Inizializzato con seed {seed_value}")
     
-    client = LoggingClient(cid=args.cid, num_clients=args.num_clients, dataset_name=args.dataset)
+    client = LoggingClient(cid=args.cid, num_clients=args.num_clients, dataset_name=args.dataset, attack_cfg=attack_cfg)
     fl.client.start_client(
         server_address="localhost:8080",
         client=client.to_client(),
