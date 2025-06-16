@@ -1,5 +1,7 @@
 import sys
 import socket
+import threading
+import time
 from pathlib import Path
 import pytest
 
@@ -36,3 +38,27 @@ def test_is_port_free():
     assert pm.is_port_free(port) is False
     s.close()
     assert pm.is_port_free(port) is True
+
+
+def test_threaded_allocation():
+    pm = PortManager(base_port=18000, num_ports=5)
+    allocated = []
+    errors = []
+
+    def worker():
+        try:
+            with pm.get_port() as p:
+                allocated.append(p)
+                time.sleep(0.05)
+        except ResourceError as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(allocated) == 5
+    assert len(set(allocated)) == 5
+    assert not errors

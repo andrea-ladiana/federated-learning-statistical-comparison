@@ -9,10 +9,11 @@ import subprocess
 import time
 import argparse
 from pathlib import Path
+import socket
 
 # Add path to configuration directory
 parent_dir = Path(__file__).parent.parent
-config_dir = parent_dir / "configuration"
+config_dir = (parent_dir / "configuration").resolve()
 sys.path.insert(0, str(config_dir))
 
 # Disabilita i messaggi di warning oneDNN di TensorFlow
@@ -23,12 +24,24 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Riduce ulteriormente i messaggi di l
 import importlib.util
 
 def load_attack_config():
-    """Load attack configuration from file."""
-    config_file = config_dir / "attack_config.py"
+    """Load attack configuration from file, validating the path."""
+    config_file = (config_dir / "attack_config.py").resolve()
+    repo_root = parent_dir.resolve()
+
+    # Ensure the resolved path is within the repository root to avoid loading
+    # unexpected code via symlinks or path manipulation
+    try:
+        config_file.relative_to(repo_root)
+    except ValueError as exc:  # pragma: no cover - safety check
+        raise ImportError(f"Unsafe attack config path: {config_file}") from exc
+
+    if not config_file.is_file():
+        raise ImportError(f"Attack config not found: {config_file}")
+
     spec = importlib.util.spec_from_file_location("attack_config", config_file)
     if spec is None or spec.loader is None:
         raise ImportError(f"Could not load spec from {config_file}")
-    
+
     attack_config = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(attack_config)
     return attack_config
@@ -77,6 +90,35 @@ except Exception as e:
 
     def create_attack_config() -> _FallbackConfig:  # type: ignore
         return _FallbackConfig()
+
+
+def terminate_process(proc: subprocess.Popen, timeout: int = 5) -> None:
+    """Terminate a subprocess gracefully, killing it if it ignores SIGTERM."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"Process did not terminate in {timeout}s, killing...")
+        proc.kill()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def wait_for_server(port: int, host: str = "localhost", timeout: float = 5.0) -> bool:
+    """Wait until a TCP port is accepting connections."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                sock.settimeout(0.5)
+                sock.connect((host, port))
+                return True
+            except (ConnectionRefusedError, OSError):
+                time.sleep(0.5)
+    return False
+
 
 def main():
     parser = argparse.ArgumentParser(description="Avvia esperimenti di FL con attacchi")
@@ -177,6 +219,13 @@ def main():
                        help="Eta parameter for FedOpt (default: 1e-3)")
     parser.add_argument("--fedopt-eta-l", type=float, default=1e-3,
                        help="Eta_l parameter for FedOpt (default: 1e-3)")
+
+    parser.add_argument(
+        "--server-start-timeout",
+        type=float,
+        default=5.0,
+        help="Tempo massimo di attesa per l'avvio del server (secondi)"
+    )
     
     args = parser.parse_args()
       # Handle server learning rate parameter compatibility
@@ -272,8 +321,15 @@ def main():
     server_process = subprocess.Popen(server_cmd)
     
     # Attendi che il server si avvii
-    print("Attesa avvio server (5 secondi)...")
-    time.sleep(5)    # Avvia i client
+    print("Attesa avvio server...")
+    if not wait_for_server(8080, timeout=args.server_start_timeout):
+        print(
+            f"Errore: il server non e' disponibile dopo {args.server_start_timeout} secondi"
+        )
+        server_process.terminate()
+        server_process.wait()
+        return
+    # Avvia i client
     client_processes = []
     
     # Determine the correct path to core/client.py based on current working directory
@@ -317,8 +373,7 @@ def main():
     
     # Termina il server
     print("Terminazione del server...")
-    server_process.terminate()
-    server_process.wait()
+    terminate_process(server_process)
     
     print("Esperimento completato")
 

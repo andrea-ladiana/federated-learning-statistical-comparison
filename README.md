@@ -176,6 +176,10 @@ Run federated learning with adversarial attacks:
 ```bash
 python experiment_runners/run_with_attacks.py --strategy fedavg --dataset cifar10 \
     --attack labelflip --labelflip-fraction 0.2 --num-clients 10
+# Optional: reduce wait time for server start (default 5s)
+python experiment_runners/run_with_attacks.py --strategy fedavg --dataset cifar10 \
+    --attack labelflip --labelflip-fraction 0.2 --num-clients 10 \
+    --server-start-timeout 2
 ```
 
 ### Setup and Verification

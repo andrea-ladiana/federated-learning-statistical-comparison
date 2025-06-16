@@ -67,3 +67,11 @@ def test_parameters_to_ndarrays_invalid_bytes():
     with pytest.raises(utils.ParameterConversionError):
         utils.parameters_to_ndarrays(params)
 
+        
+def test_safe_aggregate_parameters_shape_mismatch():
+    p1 = utils.ndarrays_to_parameters([np.ones((2, 2))])
+    p2 = utils.ndarrays_to_parameters([np.ones((3, 3))])
+    aggregated = utils.safe_aggregate_parameters([p1, p2])
+    assert aggregated.tensors == []
+
+

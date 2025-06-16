@@ -7,6 +7,8 @@ dei client malevoli per sabotare l'apprendimento federato.
 
 import numpy as np
 
+MAX_FLIP_INTENSITY = 10.0
+
 
 def select_clients_for_gradient_flipping(num_clients, gradient_flipping_fraction):
     """
@@ -19,7 +21,9 @@ def select_clients_for_gradient_flipping(num_clients, gradient_flipping_fraction
     Returns:
         list: Lista degli indici dei client da attaccare
     """
-    if gradient_flipping_fraction <= 0.0:
+    if not 0.0 <= gradient_flipping_fraction <= 1.0:
+        raise ValueError("gradient_flipping_fraction must be between 0 and 1")
+    if gradient_flipping_fraction == 0.0:
         return []
     
     num_attacked = max(1, int(gradient_flipping_fraction * num_clients))
@@ -41,7 +45,11 @@ def apply_gradient_flipping(model_parameters, flip_intensity=1.0):
     Returns:
         list: Parametri del modello con gradient flipping applicato
     """
-    if flip_intensity <= 0.0:
+    if flip_intensity < 0.0 or flip_intensity > MAX_FLIP_INTENSITY:
+        raise ValueError(
+            f"flip_intensity must be between 0 and {MAX_FLIP_INTENSITY}"
+        )
+    if flip_intensity == 0.0:
         return model_parameters
     
     flipped_parameters = []

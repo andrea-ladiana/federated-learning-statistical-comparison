@@ -259,9 +259,12 @@ class MetricsCollector:
     
     def _monitor_resources(self, experiment_id: str, stop_event: threading.Event):
         """Loop di monitoraggio delle risorse."""
+        # Prime CPU percent measurement to avoid returning 0 on first call
+        psutil.cpu_percent(interval=None)
         while not stop_event.is_set():
             try:
-                cpu_percent = psutil.cpu_percent(interval=1)
+                time.sleep(5)  # Sample every 5 seconds
+                cpu_percent = psutil.cpu_percent(interval=None)
                 memory_percent = psutil.virtual_memory().percent
                 if experiment_id in self.metrics:
                     metrics = self.metrics[experiment_id]
@@ -273,8 +276,6 @@ class MetricsCollector:
                     metrics.cpu_usage.append(cpu_percent)
                     metrics.memory_usage.append(memory_percent)
                     # The previous line already appends to the memory usage, no need for this line
-                
-                time.sleep(5)  # Sample every 5 seconds
             except Exception as e:
                 logger.warning(f"Error monitoring resources for {experiment_id}: {e}")
                 break
@@ -344,14 +345,16 @@ class PortManager:
         logger.info(f"Port manager initialized with ports {base_port}-{base_port + num_ports - 1}")
     
     def acquire_port(self) -> int:
-        """Acquisisce una porta disponibile."""
+        """Acquisisce una porta disponibile, assicurandosi che sia libera."""
         with self.lock:
-            if not self.available_ports:
-                raise ResourceError("No available ports")
-            port = self.available_ports.pop(0)
-            self.used_ports.add(port)
-            logger.debug(f"Acquired port {port}")
-            return port
+            while self.available_ports:
+                port = self.available_ports.pop(0)
+                if self.is_port_free(port):
+                    self.used_ports.add(port)
+                    logger.debug(f"Acquired port {port}")
+                    return port
+                logger.debug(f"Port {port} already in use, skipping")
+            raise ResourceError("No available ports")
     
     def release_port(self, port: int):
         """Rilascia una porta."""
@@ -365,7 +368,8 @@ class PortManager:
         """Verifica se una porta è libera."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('localhost', port))
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(("localhost", port))
                 return True
         except OSError:
             return False
@@ -549,7 +553,8 @@ class EnhancedExperimentRunner:
             killed_processes = []
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
-                    if 'python' in proc.info['name'].lower():
+                    name = proc.info.get('name')
+                    if name and 'python' in name.lower():
                         cmdline = ' '.join(proc.info['cmdline'] or [])
                         if any(keyword in cmdline.lower() for keyword in 
                                ['flower', 'server.py', 'client.py', 'run_with_attacks.py']):

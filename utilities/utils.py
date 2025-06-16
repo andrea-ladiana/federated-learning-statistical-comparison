@@ -56,24 +56,35 @@ def safe_aggregate_parameters(parameter_list: List[Parameters]) -> Parameters:
     """Safely aggregate multiple parameter objects into one."""
     if not parameter_list:
         return Parameters(tensors=[], tensor_type="numpy.ndarray")
-    
+
     try:
         # Convert all parameters to ndarrays
         all_ndarrays = [parameters_to_ndarrays(p) for p in parameter_list]
         # Filter out empty results
         valid_ndarrays = [arr for arr in all_ndarrays if len(arr) > 0]
-        
+
         if not valid_ndarrays:
             return Parameters(tensors=[], tensor_type="numpy.ndarray")
-        
+
+        # Validate that all arrays have matching shapes
+        ref_shapes = [layer.shape for layer in valid_ndarrays[0]]
+        for ndarrays in valid_ndarrays[1:]:
+            if len(ndarrays) != len(ref_shapes):
+                logger.error("Shape mismatch detected in safe_aggregate_parameters")
+                return Parameters(tensors=[], tensor_type="numpy.ndarray")
+            for layer, ref_shape in zip(ndarrays, ref_shapes):
+                if layer.shape != ref_shape:
+                    logger.error("Shape mismatch detected in safe_aggregate_parameters")
+                    return Parameters(tensors=[], tensor_type="numpy.ndarray")
+
         # Use the first valid result as a template
         aggregated = [np.zeros_like(layer) for layer in valid_ndarrays[0]]
-        
+
         # Simple averaging
         for ndarrays in valid_ndarrays:
             for i, layer in enumerate(ndarrays):
                 aggregated[i] += layer / len(valid_ndarrays)
-        
+
         return ndarrays_to_parameters(aggregated)
     except Exception as e:
         logger.error(f"Error in safe_aggregate_parameters: {str(e)}")
@@ -98,23 +109,27 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
             return []
         normalization_factors = [f / total_factor for f in normalization_factors]
         
-        # Create a list of empty ndarrays, one for each layer
-        aggregated_ndarrays = [
-            np.zeros_like(weights[0][i]) for i in range(len(weights[0]))
-        ]
-        
-        # Weighted average using normalization factors
-        for i, factor in enumerate(normalization_factors):
-            for j, weight in enumerate(weights[i]):
+        factors = np.asarray(normalization_factors, dtype=np.float32)
+
+        aggregated_ndarrays = []
+        try:
+            layers = list(zip(*weights))
+            for layer_idx, layer_weights in enumerate(layers):
                 try:
-                    # Ensure weight is a proper numpy array with correct dtype
-                    if not isinstance(weight, np.ndarray):
-                        weight = np.array(weight, dtype=np.float32)
-                    weight = np.ascontiguousarray(weight, dtype=np.float32)
-                    aggregated_ndarrays[j] += weight * factor
+                    stack = np.stack([
+                        np.asarray(w, dtype=np.float32) for w in layer_weights
+                    ])
+                    aggregated = np.average(stack, axis=0, weights=factors)
+                    aggregated_ndarrays.append(aggregated)
                 except Exception as e:
-                    logger.warning(f"Error processing weight at index {i},{j}: {str(e)}")
-        
+                    logger.warning(
+                        f"Error processing layer {layer_idx}: {str(e)}"
+                    )
+                    aggregated_ndarrays.append(np.zeros_like(layer_weights[0]))
+        except Exception as e:
+            logger.error(f"Error stacking weights: {str(e)}")
+            return []
+
         return aggregated_ndarrays
     except Exception as e:
         logger.error(f"Error in aggregate_ndarrays_weighted: {str(e)}")
