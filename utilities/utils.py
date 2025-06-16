@@ -99,8 +99,16 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
 # Function to calculate weighted average of metrics
 def weighted_average(metrics: List[Tuple[int, Dict[str, Scalar]]]) -> Dict[str, Scalar]:
     """Compute weighted average for an arbitrary set of metrics."""
+    if not metrics:
+        logger.warning("No metrics provided to weighted_average")
+        return {}
+
     examples = [num_examples for num_examples, _ in metrics]
     total_examples = sum(examples)
+
+    if total_examples == 0:
+        logger.warning("Total number of examples is zero in weighted_average")
+        return {}
 
     aggregated: Dict[str, Scalar] = {}
     all_keys = set().union(*(m.keys() for _, m in metrics))
