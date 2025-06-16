@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Add path to configuration directory
 parent_dir = Path(__file__).parent.parent
-config_dir = parent_dir / "configuration"
+config_dir = (parent_dir / "configuration").resolve()
 sys.path.insert(0, str(config_dir))
 
 # Disabilita i messaggi di warning oneDNN di TensorFlow
@@ -23,12 +23,24 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Riduce ulteriormente i messaggi di l
 import importlib.util
 
 def load_attack_config():
-    """Load attack configuration from file."""
-    config_file = config_dir / "attack_config.py"
+    """Load attack configuration from file, validating the path."""
+    config_file = (config_dir / "attack_config.py").resolve()
+    repo_root = parent_dir.resolve()
+
+    # Ensure the resolved path is within the repository root to avoid loading
+    # unexpected code via symlinks or path manipulation
+    try:
+        config_file.relative_to(repo_root)
+    except ValueError as exc:  # pragma: no cover - safety check
+        raise ImportError(f"Unsafe attack config path: {config_file}") from exc
+
+    if not config_file.is_file():
+        raise ImportError(f"Attack config not found: {config_file}")
+
     spec = importlib.util.spec_from_file_location("attack_config", config_file)
     if spec is None or spec.loader is None:
         raise ImportError(f"Could not load spec from {config_file}")
-    
+
     attack_config = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(attack_config)
     return attack_config
