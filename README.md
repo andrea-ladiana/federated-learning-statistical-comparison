@@ -174,7 +174,8 @@ python experiment_runners/enhanced_experiment_runner.py --test-mode
 Run federated learning with adversarial attacks:
 
 ```bash
-python experiment_runners/run_with_attacks.py --strategy fedavg --dataset cifar10 --attack labelflip --labelflip-fraction 0.2
+python experiment_runners/run_with_attacks.py --strategy fedavg --dataset cifar10 \
+    --attack labelflip --labelflip-fraction 0.2 --num-clients 10
 ```
 
 ### Setup and Verification
