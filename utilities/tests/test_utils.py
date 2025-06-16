@@ -59,3 +59,10 @@ def test_aggregate_ndarrays_weighted_negative_factor():
     result = utils.aggregate_ndarrays_weighted(weights, factors)
     assert result == []
 
+
+def test_safe_aggregate_parameters_shape_mismatch():
+    p1 = utils.ndarrays_to_parameters([np.ones((2, 2))])
+    p2 = utils.ndarrays_to_parameters([np.ones((3, 3))])
+    aggregated = utils.safe_aggregate_parameters([p1, p2])
+    assert aggregated.tensors == []
+
