@@ -20,6 +20,7 @@ from models import Net, CNNNet, TinyMNIST, MinimalCNN, MiniResNet20, get_transfo
 # Importazione delle funzioni di attacco e configurazione
 import utilities.fl_attacks
 from configuration.attack_config import *
+from configuration.config_manager import get_config_manager
 import random
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score
@@ -30,12 +31,13 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 # 2) caricamento dei dati
 # - caricamento di MNIST
 # - DataLoader: gestisce il flusso degli esempi di un dataset verso il modello --> carica i dati
-def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
+def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST"):
     """
     Carica i dati per il training e test del client.
-    
+
     Args:
         cid: Client ID
+        num_clients: Numero totale di client partecipanti
         apply_attacks: Se applicare gli attacchi configurati
         dataset_name: Nome del dataset ("MNIST", "FMNIST", "CIFAR10")
     """
@@ -103,7 +105,6 @@ def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
         # 5. Targeted Label-flipping (cambia le etichette da una classe sorgente a una target)
         if LABEL_FLIPPING["enabled"]:
             # Determina se questo client è un target per l'attacco
-            num_clients = 10  # Assumiamo 10 client per semplicità
             clients_to_attack = utilities.fl_attacks.select_clients_for_label_flipping(
                 num_clients, LABEL_FLIPPING["attack_fraction"])
             
@@ -158,12 +159,13 @@ def load_data(cid=None, apply_attacks=False, dataset_name="MNIST"):
 # - fase di fit (training locale) --> SGD, lr 0.01, CrossEntropyLoss
 # - fase di evaluate (valutazione modello globale sui client)
 class LoggingClient(fl.client.NumPyClient):
-    def __init__(self, cid: str, dataset_name: str = "MNIST"):
+    def __init__(self, cid: str, num_clients: int, dataset_name: str = "MNIST"):
         self.cid = cid
         self.dataset_name = dataset_name
+        self.num_clients = num_clients
         self.model = TinyMNIST()  # Using TinyMNIST for all datasets
         # Carica i dati con potenziali attacchi applicati
-        self.trainloader, self.testloader = load_data(cid=cid, apply_attacks=ENABLE_ATTACKS, dataset_name=dataset_name)
+        self.trainloader, self.testloader = load_data(cid=cid, num_clients=num_clients, apply_attacks=ENABLE_ATTACKS, dataset_name=dataset_name)
         self.current_round = 0
         print(f"[Client {cid}] Inizializzato con modello TinyMNIST per dataset {dataset_name}")
 
@@ -212,9 +214,8 @@ class LoggingClient(fl.client.NumPyClient):
             # 1. Noise Injection Attack
             if ENABLE_ATTACKS and NOISE_INJECTION["enabled"]:
                 # Verifica se questo client è un target per noise injection
-                num_clients = 10  # Assumiamo 10 client per semplicità
                 noise_clients = utilities.fl_attacks.select_clients_for_noise_injection(
-                    num_clients, NOISE_INJECTION["attack_fraction"])
+                    self.num_clients, NOISE_INJECTION["attack_fraction"])
                 
                 if int(self.cid) in noise_clients:
                     # Applica noise injection ai dati
@@ -325,9 +326,12 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--cid", type=str, default="0")
-    parser.add_argument("--dataset", type=str, default="MNIST", 
+    parser.add_argument("--dataset", type=str, default="MNIST",
                         choices=["MNIST", "FMNIST", "CIFAR10"],
                         help="Dataset da utilizzare (MNIST, FMNIST, CIFAR10)")
+    config_mgr = get_config_manager()
+    parser.add_argument("--num-clients", type=int, default=config_mgr.defaults.num_clients,
+                        help="Numero totale di client partecipanti")
     parser.add_argument("--enable-attacks", action="store_true", help="Abilita gli attacchi globalmente.")
     
     # New arguments for specific control over Client Failure attack
@@ -373,7 +377,7 @@ if __name__ == "__main__":
     torch.manual_seed(seed_value)
     print(f"[Client {args.cid}] Inizializzato con seed {seed_value}")
     
-    client = LoggingClient(cid=args.cid, dataset_name=args.dataset)
+    client = LoggingClient(cid=args.cid, num_clients=args.num_clients, dataset_name=args.dataset)
     fl.client.start_client(
         server_address="localhost:8080",
         client=client.to_client(),

@@ -287,7 +287,7 @@ def main():
         client_path = current_dir / "core" / "client.py"
     
     for i in range(args.num_clients):
-        cmd = [sys.executable, str(client_path), "--cid", str(i)]
+        cmd = [sys.executable, str(client_path), "--cid", str(i), "--num-clients", str(args.num_clients)]
         
         # Aggiungi il dataset se diverso dal default
         if args.dataset != "MNIST":
