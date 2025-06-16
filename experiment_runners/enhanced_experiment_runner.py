@@ -553,7 +553,8 @@ class EnhancedExperimentRunner:
             killed_processes = []
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
-                    if 'python' in proc.info['name'].lower():
+                    name = proc.info.get('name')
+                    if name and 'python' in name.lower():
                         cmdline = ' '.join(proc.info['cmdline'] or [])
                         if any(keyword in cmdline.lower() for keyword in 
                                ['flower', 'server.py', 'client.py', 'run_with_attacks.py']):
