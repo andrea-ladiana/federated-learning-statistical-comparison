@@ -73,6 +73,9 @@ def apply_targeted_label_flipping(dataset, client_indices, source_class, target_
         tuple: (modified_dataset, num_flipped) dove modified_dataset è il dataset modificato
                e num_flipped è il numero di etichette modificate
     """
+    if not 0.0 <= flip_probability <= 1.0:
+        raise ValueError("flip_probability must be between 0 and 1")
+
     # Crea una copia del dataset per non modificare l'originale
     modified_targets = dataset.targets.clone() if isinstance(dataset.targets, torch.Tensor) else dataset.targets.copy()
     
