@@ -383,33 +383,51 @@ def configure_attacks(args):
 
     attack_type = args.attack
 
+    def check_fraction(value: float, name: str) -> None:
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be between 0 and 1")
+
+    def check_positive(value: float, name: str) -> None:
+        if value <= 0:
+            raise ValueError(f"{name} must be > 0")
+
     if attack_type == "none":
         print("Nessun attacco abilitato")
         return cfg
 
     if attack_type in ("noise", "all"):
+        check_positive(args.noise_std, "noise_std")
+        check_fraction(args.noise_fraction, "noise_fraction")
         cfg.noise_injection["enabled"] = True
         cfg.noise_injection["noise_std"] = args.noise_std
         cfg.noise_injection["attack_fraction"] = args.noise_fraction
         print(f"Attacco Noise Injection abilitato: std={args.noise_std}, fraction={args.noise_fraction}")
 
     if attack_type in ("missed", "all"):
+        check_fraction(args.missed_prob, "missed_prob")
         cfg.missed_class["enabled"] = True
         cfg.missed_class["class_removal_prob"] = args.missed_prob
         print(f"Attacco Missed Class abilitato: prob={args.missed_prob}")
 
     if attack_type in ("failure", "all"):
+        check_fraction(args.failure_prob, "failure_prob")
         cfg.client_failure["enabled"] = True
         cfg.client_failure["failure_prob"] = args.failure_prob
         print(f"Attacco Client Failure abilitato: prob={args.failure_prob}")
 
     if attack_type in ("asymmetry", "all"):
+        check_positive(args.asymmetry_min, "asymmetry_min")
+        check_positive(args.asymmetry_max, "asymmetry_max")
+        if args.asymmetry_min > args.asymmetry_max:
+            raise ValueError("asymmetry_min cannot be greater than asymmetry_max")
         cfg.data_asymmetry["enabled"] = True
         cfg.data_asymmetry["min_factor"] = args.asymmetry_min
         cfg.data_asymmetry["max_factor"] = args.asymmetry_max
         print(f"Attacco Data Asymmetry abilitato: min={args.asymmetry_min}, max={args.asymmetry_max}")
 
     if attack_type in ("labelflip", "all"):
+        check_fraction(args.labelflip_fraction, "labelflip_fraction")
+        check_fraction(args.flip_prob, "flip_prob")
         cfg.label_flipping["enabled"] = True
         cfg.label_flipping["attack_fraction"] = args.labelflip_fraction
         cfg.label_flipping["flip_probability"] = args.flip_prob
@@ -418,6 +436,8 @@ def configure_attacks(args):
         print(f"Attacco Label Flipping abilitato: fraction={args.labelflip_fraction}, flip_prob={args.flip_prob}, source={args.source_class}, target={args.target_class}")
 
     if attack_type in ("gradflip", "all"):
+        check_fraction(args.gradflip_fraction, "gradflip_fraction")
+        check_positive(args.gradflip_intensity, "gradflip_intensity")
         cfg.gradient_flipping["enabled"] = True
         cfg.gradient_flipping["attack_fraction"] = args.gradflip_fraction
         cfg.gradient_flipping["flip_intensity"] = args.gradflip_intensity
