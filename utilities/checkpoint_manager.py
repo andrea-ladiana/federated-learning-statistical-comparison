@@ -6,7 +6,6 @@ l'esecuzione in caso di interruzioni.
 """
 
 import json
-import pickle
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Set
