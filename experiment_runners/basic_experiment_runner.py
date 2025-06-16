@@ -181,11 +181,14 @@ class ExperimentRunner:
         
         # DataFrame per raccogliere tutti i risultati
         self.results_df = pd.DataFrame(columns=[
-            "algorithm", "attack", "dataset", "run", "client_id", 
+            "algorithm", "attack", "dataset", "run", "client_id",
             "round", "metric", "value"
         ])
+
+        # Buffer temporaneo per le metriche prima di salvarle nel DataFrame
+        self.metrics_buffer: List[Dict[str, Any]] = []
         self.collector = MetricsCollector()
-        
+
         # Track current round across log lines
         self.current_round = 0
     
@@ -404,6 +407,8 @@ class ExperimentRunner:
             logger.info("Cleaning up processes...")
             self.kill_flower_processes()
             time.sleep(2)  # Grace period
+            # Scrivi le metriche accumulate
+            self.flush_metrics_buffer()
             # The method must return a bool, but since we're in finally block
             # the actual return value comes from the try/except blocks above
 
@@ -518,31 +523,24 @@ class ExperimentRunner:
                     "metric": "server_loss",
                     "value": float(loss)                })
         
-        # Add all collected metrics to DataFrame
+        # Accumula le metriche nel buffer; verranno scritte sul DataFrame in blocco
         if metrics_to_add:
-            try:
-                new_rows = pd.DataFrame(metrics_to_add)
-                # Check if results_df is empty and handle accordingly
-                if self.results_df.empty:
-                    self.results_df = new_rows
-                else:
-                    self.results_df = pd.concat([self.results_df, new_rows], ignore_index=True)
-                
-                # Log debug info for first few metrics
-                if len(self.results_df) <= 20:
-                    logger.info(f"Added {len(metrics_to_add)} metrics from line: {log_line[:100]}...")
-                    
-            except Exception as e:
-                logger.warning(f"Failed to add metrics: {e}")
-                # Fallback: add one metric at a time
-                for metric in metrics_to_add:
-                    try:
-                        if self.results_df.empty:
-                            self.results_df = pd.DataFrame([metric])
-                        else:
-                            self.results_df = pd.concat([self.results_df, pd.DataFrame([metric])], ignore_index=True)
-                    except Exception as e2:
-                        logger.warning(f"Failed to add single metric: {e2}")
+            self.metrics_buffer.extend(metrics_to_add)
+
+    def flush_metrics_buffer(self):
+        """Trasferisce le metriche accumulate nel DataFrame principale."""
+        if not self.metrics_buffer:
+            return
+        try:
+            new_rows = pd.DataFrame(self.metrics_buffer)
+            if self.results_df.empty:
+                self.results_df = new_rows
+            else:
+                self.results_df = pd.concat([self.results_df, new_rows], ignore_index=True)
+        except Exception as e:
+            logger.warning(f"Failed to flush metrics buffer: {e}")
+        finally:
+            self.metrics_buffer = []
     
     def run_experiments(self, 
                        configs: List[ExperimentConfig], 
@@ -581,10 +579,13 @@ class ExperimentRunner:
                     self.save_results(intermediate=True)
         
         logger.info(f"All experiments completed: {completed} successful, {failed} failed")
+        self.flush_metrics_buffer()
         return self.results_df
     
     def save_results(self, intermediate: bool = False):
         """Salva i risultati su file."""
+        # Assicurati che tutte le metriche in buffer siano state salvate
+        self.flush_metrics_buffer()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         if intermediate:
