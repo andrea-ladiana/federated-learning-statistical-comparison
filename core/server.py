@@ -12,6 +12,7 @@ sys.path.insert(0, str(parent_dir))
 
 from models import Net, CNNNet, TinyMNIST, MinimalCNN, MiniResNet20  # Importazione dei modelli dal modulo condiviso
 from core.strategies import create_strategy  # Importa il factory per le strategie
+from configuration.config_manager import get_config_manager
 import argparse
 
 # Funzioni per contare i parametri del modello
@@ -44,10 +45,13 @@ initial_parameters = ndarrays_to_parameters(initial_weights)
 # main
 if __name__ == "__main__":    # Parse command line arguments
     parser = argparse.ArgumentParser(description="Avvia il server di Federated Learning")
+    config_mgr = get_config_manager()
     parser.add_argument("--rounds", type=int, default=3, help="Numero di round di federazione da eseguire")
-    parser.add_argument("--dataset", type=str, default="MNIST", 
+    parser.add_argument("--dataset", type=str, default="MNIST",
                         choices=["MNIST", "FMNIST", "CIFAR10"],
                         help="Dataset da utilizzare (MNIST, FMNIST, CIFAR10)")
+    parser.add_argument("--port", type=int, default=config_mgr.system.port,
+                        help="Porta di ascolto del server")
     parser.add_argument(
         "--strategy", 
         type=str, 
@@ -186,7 +190,7 @@ if __name__ == "__main__":    # Parse command line arguments
     )
     
     fl.server.start_server(
-        server_address="0.0.0.0:8080",
+        server_address=f"0.0.0.0:{args.port}",
         config=fl.server.ServerConfig(num_rounds=args.rounds),
         strategy=strategy,
     )
