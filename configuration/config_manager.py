@@ -245,7 +245,8 @@ class ConfigManager:
             checks["memory_available"] = available_memory_mb >= self.resources.max_memory_mb / 2
             
             # Controlla CPU
-            cpu_percent = psutil.cpu_percent(interval=1)
+            # Usa interval=None per evitare ritardi dovuti al campionamento
+            cpu_percent = psutil.cpu_percent(interval=None)
             checks["cpu_available"] = cpu_percent < self.resources.max_cpu_percent
             
             # Controlla spazio disco
