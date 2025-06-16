@@ -2,6 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 import types
+import psutil
 
 import pytest
 
@@ -68,3 +69,42 @@ def test_process_terminated_on_timeout(monkeypatch):
     assert not success
     assert dummy.killed
     assert dummy.wait_after_kill_called
+
+
+class MockPsProcess:
+    def __init__(self, pid):
+        self.pid = pid
+        self.terminated = False
+        self.killed = False
+
+    def cmdline(self):
+        return ["python", "server.py"]
+
+    def terminate(self):
+        self.terminated = True
+
+    def wait(self, timeout=None):
+        return 0
+
+    def kill(self):
+        self.killed = True
+
+
+def test_kill_flower_processes_does_not_touch_external_process(monkeypatch):
+    runner = ExperimentRunner(base_dir=".", results_dir="./tmp")
+
+    managed = MockPsProcess(111)
+    external = MockPsProcess(222)
+
+    process_map = {111: managed, 222: external}
+
+    monkeypatch.setattr(psutil, "Process", lambda pid: process_map[pid])
+    monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid in process_map)
+
+    runner._managed_pids.add(111)
+
+    runner.kill_flower_processes()
+
+    assert managed.terminated or managed.killed
+    assert not external.terminated
+    assert not external.killed
