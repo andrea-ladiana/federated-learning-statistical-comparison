@@ -25,6 +25,25 @@ def test_weighted_average_normal_case():
     assert result == expected
 
 
+def test_weighted_average_with_none_and_negative_values():
+    metrics = [
+        (-1, {"acc": 0.8}),
+        (3, {"acc": 0.6}),
+        (2, None),
+        (5, {"acc": 0.9}),
+    ]
+    result = utils.weighted_average(metrics)
+    expected = {"acc": (3 * 0.6 + 5 * 0.9) / (3 + 5)}
+    assert result == expected
+
+
+def test_weighted_average_all_invalid():
+    metrics = [
+        (-2, {"acc": 0.5}),
+        (0, None),
+    ]
+    assert utils.weighted_average(metrics) == {}
+
 def test_aggregate_ndarrays_weighted_normalization():
     weights = [[np.array([1.0])], [np.array([3.0])]]
     factors = [1.0, 3.0]
@@ -39,3 +58,4 @@ def test_aggregate_ndarrays_weighted_negative_factor():
     factors = [-1.0]
     result = utils.aggregate_ndarrays_weighted(weights, factors)
     assert result == []
+
