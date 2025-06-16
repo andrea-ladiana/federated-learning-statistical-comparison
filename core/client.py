@@ -19,11 +19,21 @@ from models import Net, CNNNet, TinyMNIST, MinimalCNN, MiniResNet20, get_transfo
 
 # Importazione delle funzioni di attacco e configurazione
 import utilities.fl_attacks
-from configuration.attack_config import *
+from configuration.attack_config import create_attack_config
 from configuration.config_manager import get_config_manager
 import random
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score
+
+# Load a fresh copy of attack configuration for each client
+attack_cfg = create_attack_config()
+ENABLE_ATTACKS = attack_cfg.enable_attacks
+NOISE_INJECTION = attack_cfg.noise_injection
+MISSED_CLASS = attack_cfg.missed_class
+CLIENT_FAILURE = attack_cfg.client_failure
+DATA_ASYMMETRY = attack_cfg.data_asymmetry
+LABEL_FLIPPING = attack_cfg.label_flipping
+GRADIENT_FLIPPING = attack_cfg.gradient_flipping
 
 # 1) definizione del modello locale
 # - I modelli sono ora importati dal modulo models.py

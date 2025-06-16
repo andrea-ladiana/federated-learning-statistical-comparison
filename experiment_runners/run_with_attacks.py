@@ -35,49 +35,48 @@ def load_attack_config():
 
 try:
     attack_config = load_attack_config()
-    # Import the specific configurations
-    NOISE_INJECTION = attack_config.NOISE_INJECTION
-    MISSED_CLASS = attack_config.MISSED_CLASS
-    CLIENT_FAILURE = attack_config.CLIENT_FAILURE
-    DATA_ASYMMETRY = attack_config.DATA_ASYMMETRY
-    LABEL_FLIPPING = attack_config.LABEL_FLIPPING
-    GRADIENT_FLIPPING = attack_config.GRADIENT_FLIPPING
+    create_attack_config = attack_config.create_attack_config
 except Exception as e:
     print(f"Warning: Could not import attack config: {e}")
-    # Fallback: define configurations locally
-    NOISE_INJECTION = {
-        "enabled": False,
-        "noise_std": 0.1,
-        "attack_fraction": 0.2,
-    }
-    MISSED_CLASS = {
-        "enabled": False,
-        "class_removal_prob": 0.3,
-    }
-    CLIENT_FAILURE = {
-        "enabled": False,
-        "failure_prob": 0.1,
-        "debug_mode": True,
-    }
-    DATA_ASYMMETRY = {
-        "enabled": False,
-        "min_factor": 0.5,
-        "max_factor": 3.0,
-        "class_removal_prob": 0.0,
-    }
-    LABEL_FLIPPING = {
-        "enabled": False,
-        "attack_fraction": 0.2,
-        "flip_probability": 0.8,
-        "fixed_source": None,
-        "fixed_target": None,
-        "change_each_round": True,
-    }
-    GRADIENT_FLIPPING = {
-        "enabled": False,
-        "attack_fraction": 0.2,
-        "flip_intensity": 1.0,
-    }
+    from dataclasses import dataclass, field
+    from typing import Any, Dict
+
+    @dataclass
+    class _FallbackConfig:
+        enable_attacks: bool = True
+        noise_injection: Dict[str, Any] = field(
+            default_factory=lambda: {"enabled": False, "noise_std": 0.1, "attack_fraction": 0.2}
+        )
+        missed_class: Dict[str, Any] = field(
+            default_factory=lambda: {"enabled": False, "class_removal_prob": 0.3}
+        )
+        client_failure: Dict[str, Any] = field(
+            default_factory=lambda: {"enabled": False, "failure_prob": 0.1, "debug_mode": True}
+        )
+        data_asymmetry: Dict[str, Any] = field(
+            default_factory=lambda: {
+                "enabled": False,
+                "min_factor": 0.5,
+                "max_factor": 3.0,
+                "class_removal_prob": 0.0,
+            }
+        )
+        label_flipping: Dict[str, Any] = field(
+            default_factory=lambda: {
+                "enabled": False,
+                "attack_fraction": 0.2,
+                "flip_probability": 0.8,
+                "fixed_source": None,
+                "fixed_target": None,
+                "change_each_round": True,
+            }
+        )
+        gradient_flipping: Dict[str, Any] = field(
+            default_factory=lambda: {"enabled": False, "attack_fraction": 0.2, "flip_intensity": 1.0}
+        )
+
+    def create_attack_config() -> _FallbackConfig:  # type: ignore
+        return _FallbackConfig()
 
 def main():
     parser = argparse.ArgumentParser(description="Avvia esperimenti di FL con attacchi")
@@ -189,7 +188,7 @@ def main():
     args.learning_rate = effective_learning_rate
     
     # Configura gli attacchi in base all'argomento
-    configure_attacks(args)    # Avvia il server in un processo separato
+    attack_cfg = configure_attacks(args)
     print("Avvio del server...")
     
     # Determine the correct path to core/server.py based on current working directory
@@ -299,8 +298,8 @@ def main():
             
         # Passa i flag specifici per il Client Failure Attack se è l'attacco selezionato
         # o se "all" attacchi sono selezionati.
-        # CLIENT_FAILURE["enabled"] è già stato impostato da configure_attacks
-        if CLIENT_FAILURE["enabled"] and (args.attack == "failure" or args.attack == "all"):
+        # Verifica se il Client Failure Attack è stato abilitato
+        if attack_cfg.client_failure["enabled"] and (args.attack == "failure" or args.attack == "all"):
             cmd.append("--client-failure-active")
             cmd.extend(["--client-failure-probability", str(args.failure_prob)])
             
@@ -324,60 +323,58 @@ def main():
     print("Esperimento completato")
 
 def configure_attacks(args):
-    """Configura i parametri degli attacchi in base agli argomenti specificati."""    # Reset configuration
-    NOISE_INJECTION["enabled"] = False
-    MISSED_CLASS["enabled"] = False
-    CLIENT_FAILURE["enabled"] = False
-    DATA_ASYMMETRY["enabled"] = False
-    LABEL_FLIPPING["enabled"] = False
-    GRADIENT_FLIPPING["enabled"] = False
-    
+    """Return a configured `AttackConfig` based on CLI arguments."""
+    cfg = create_attack_config()
+
     attack_type = args.attack
-    
+
     if attack_type == "none":
         print("Nessun attacco abilitato")
-        return
-    
-    if attack_type == "noise" or attack_type == "all":
-        NOISE_INJECTION["enabled"] = True
-        NOISE_INJECTION["noise_std"] = args.noise_std
-        NOISE_INJECTION["attack_fraction"] = args.noise_fraction
+        return cfg
+
+    if attack_type in ("noise", "all"):
+        cfg.noise_injection["enabled"] = True
+        cfg.noise_injection["noise_std"] = args.noise_std
+        cfg.noise_injection["attack_fraction"] = args.noise_fraction
         print(f"Attacco Noise Injection abilitato: std={args.noise_std}, fraction={args.noise_fraction}")
-    
-    if attack_type == "missed" or attack_type == "all":
-        MISSED_CLASS["enabled"] = True
-        MISSED_CLASS["class_removal_prob"] = args.missed_prob
+
+    if attack_type in ("missed", "all"):
+        cfg.missed_class["enabled"] = True
+        cfg.missed_class["class_removal_prob"] = args.missed_prob
         print(f"Attacco Missed Class abilitato: prob={args.missed_prob}")
-    
-    if attack_type == "failure" or attack_type == "all":
-        CLIENT_FAILURE["enabled"] = True
-        CLIENT_FAILURE["failure_prob"] = args.failure_prob
+
+    if attack_type in ("failure", "all"):
+        cfg.client_failure["enabled"] = True
+        cfg.client_failure["failure_prob"] = args.failure_prob
         print(f"Attacco Client Failure abilitato: prob={args.failure_prob}")
-    
-    if attack_type == "asymmetry" or attack_type == "all":
-        DATA_ASYMMETRY["enabled"] = True
-        DATA_ASYMMETRY["min_factor"] = args.asymmetry_min
-        DATA_ASYMMETRY["max_factor"] = args.asymmetry_max
+
+    if attack_type in ("asymmetry", "all"):
+        cfg.data_asymmetry["enabled"] = True
+        cfg.data_asymmetry["min_factor"] = args.asymmetry_min
+        cfg.data_asymmetry["max_factor"] = args.asymmetry_max
         print(f"Attacco Data Asymmetry abilitato: min={args.asymmetry_min}, max={args.asymmetry_max}")
-    
-    if attack_type == "labelflip" or attack_type == "all":
-        LABEL_FLIPPING["enabled"] = True
-        LABEL_FLIPPING["attack_fraction"] = args.labelflip_fraction
-        LABEL_FLIPPING["flip_probability"] = args.flip_prob
-        LABEL_FLIPPING["fixed_source"] = args.source_class
-        LABEL_FLIPPING["fixed_target"] = args.target_class
-        print(f"Attacco Label Flipping abilitato: fraction={args.labelflip_fraction}, "
-              f"flip_prob={args.flip_prob}, source={args.source_class}, target={args.target_class}")
-    
-    if attack_type == "gradflip" or attack_type == "all":
-        GRADIENT_FLIPPING["enabled"] = True
-        GRADIENT_FLIPPING["attack_fraction"] = args.gradflip_fraction
-        GRADIENT_FLIPPING["flip_intensity"] = args.gradflip_intensity
-        print(f"Attacco Gradient Flipping abilitato: fraction={args.gradflip_fraction}, "
-              f"intensity={args.gradflip_intensity}")
-    
+
+    if attack_type in ("labelflip", "all"):
+        cfg.label_flipping["enabled"] = True
+        cfg.label_flipping["attack_fraction"] = args.labelflip_fraction
+        cfg.label_flipping["flip_probability"] = args.flip_prob
+        cfg.label_flipping["fixed_source"] = args.source_class
+        cfg.label_flipping["fixed_target"] = args.target_class
+        print(f"Attacco Label Flipping abilitato: fraction={args.labelflip_fraction}, flip_prob={args.flip_prob}, source={args.source_class}, target={args.target_class}")
+
+    if attack_type in ("gradflip", "all"):
+        cfg.gradient_flipping["enabled"] = True
+        cfg.gradient_flipping["attack_fraction"] = args.gradflip_fraction
+        cfg.gradient_flipping["flip_intensity"] = args.gradflip_intensity
+        print(f"Attacco Gradient Flipping abilitato: fraction={args.gradflip_fraction}, intensity={args.gradflip_intensity}")
+
     if attack_type == "all":
         print("Tutti gli attacchi sono abilitati con i parametri specificati")
 
+    return cfg
+
+
+
 if __name__ == "__main__":
     main()
+
