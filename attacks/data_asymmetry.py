@@ -23,6 +23,12 @@ def generate_client_sizes(total_data, num_clients, min_factor, max_factor):
     Returns:
         list: Lista delle dimensioni dei dataset per ogni client
     """
+    if min_factor <= 0:
+        raise ValueError("min_factor must be > 0")
+    if max_factor <= 0:
+        raise ValueError("max_factor must be > 0")
+    if min_factor > max_factor:
+        raise ValueError("min_factor must be <= max_factor")
     # Se min_factor = max_factor, distribuisci i dati in modo uniforme
     if min_factor == max_factor:
         base_size = total_data // num_clients
