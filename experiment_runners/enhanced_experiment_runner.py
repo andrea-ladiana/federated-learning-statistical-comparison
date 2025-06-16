@@ -859,6 +859,14 @@ class EnhancedExperimentRunner:
             return "fedavg"  # Default fallback
         except Exception:
             return "fedavg"  # Safe fallback
+
+    def _safe_float(self, value: str) -> float:
+        """Convert a numeric string to float without raising exceptions."""
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            logger.debug(f"Could not convert '{value}' to float")
+            return float('nan')
     
     def parse_and_store_metrics(self, log_line: str, config: EnhancedExperimentConfig, run_id: int) -> None:
         """Analizza una riga di output e memorizza le metriche rilevanti."""
@@ -882,7 +890,7 @@ class EnhancedExperimentRunner:
                 metrics_str = server_fit_match.group(2)
                 
                 # Parse multiple metrics from the string
-                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                metric_matches = re.findall(r"(\w+)=(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", metrics_str)
                 for metric_name, metric_value in metric_matches:
                     new_row = {
                         "algorithm": current_strategy,
@@ -892,7 +900,7 @@ class EnhancedExperimentRunner:
                         "client_id": "server",
                         "round": round_num,
                         "metric": f"fit_{metric_name}",
-                        "value": float(metric_value),
+                        "value": self._safe_float(metric_value),
                     }
                     self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
                     logger.debug(f"Stored server fit metric: {new_row}")
@@ -905,7 +913,7 @@ class EnhancedExperimentRunner:
                 metrics_str = server_eval_match.group(2)
                 
                 # Parse multiple metrics from the string
-                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                metric_matches = re.findall(r"(\w+)=(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", metrics_str)
                 for metric_name, metric_value in metric_matches:
                     new_row = {
                         "algorithm": current_strategy,
@@ -915,7 +923,7 @@ class EnhancedExperimentRunner:
                         "client_id": "server",
                         "round": round_num,
                         "metric": f"eval_{metric_name}",
-                        "value": float(metric_value),
+                        "value": self._safe_float(metric_value),
                     }
                     self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
                     logger.debug(f"Stored server eval metric: {new_row}")
@@ -928,7 +936,7 @@ class EnhancedExperimentRunner:
                 metrics_str = client_fit_match.group(2)
                 
                 # Parse multiple metrics from the string
-                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                metric_matches = re.findall(r"(\w+)=(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", metrics_str)
                 for metric_name, metric_value in metric_matches:
                     # Map avg_loss to loss for consistency
                     if metric_name == "avg_loss":
@@ -942,7 +950,7 @@ class EnhancedExperimentRunner:
                         "client_id": client_id,
                         "round": self.current_round,
                         "metric": f"fit_{metric_name}",
-                        "value": float(metric_value),
+                        "value": self._safe_float(metric_value),
                     }
                     self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
                     logger.debug(f"Stored client fit metric: {new_row}")
@@ -955,7 +963,7 @@ class EnhancedExperimentRunner:
                 metrics_str = client_eval_match.group(2)
                 
                 # Parse multiple metrics from the string
-                metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
+                metric_matches = re.findall(r"(\w+)=(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", metrics_str)
                 for metric_name, metric_value in metric_matches:
                     # Map avg_loss to loss for consistency
                     if metric_name == "avg_loss":
@@ -969,7 +977,7 @@ class EnhancedExperimentRunner:
                         "client_id": client_id,
                         "round": self.current_round,
                         "metric": f"eval_{metric_name}",
-                        "value": float(metric_value),
+                        "value": self._safe_float(metric_value),
                     }
                     self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
                     logger.debug(f"Stored client eval metric: {new_row}")
