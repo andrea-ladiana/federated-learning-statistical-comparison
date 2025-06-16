@@ -750,6 +750,9 @@ class EnhancedExperimentRunner:
         # Start monitoring
         if self.system_config.resource_monitoring:
             self.metrics_collector.start_monitoring(full_experiment_id)
+        # Track execution result for metric collection
+        success = False
+        error_msg: Optional[str] = None
         try:
             logger.info(f"Starting experiment {full_experiment_id} on port {port}")
             
@@ -759,6 +762,7 @@ class EnhancedExperimentRunner:
                 # Simulate success with mock metrics
                 self.parse_and_store_metrics("Round 1: accuracy=0.85, loss=0.15", config, run_id)
                 self.parse_and_store_metrics("Round 2: accuracy=0.87, loss=0.13", config, run_id)
+                success = True
                 return True, "Test mode: simulated success"
             
             # Cleanup and wait for port
@@ -806,6 +810,7 @@ class EnhancedExperimentRunner:
                 process.kill()
                 output_lines.append("Process timed out")
                 success = False
+                error_msg = "Process timed out"
             finally:
                 self.kill_flower_processes()
                 if process.stdout:
@@ -824,14 +829,15 @@ class EnhancedExperimentRunner:
             error_msg = f"Unexpected error in experiment {full_experiment_id}: {str(e)}"
             logger.error(error_msg)
             logger.error(f"Traceback: {traceback.format_exc()}")
+            success = False
             return False, error_msg
         finally:
             # Finish monitoring
             if self.system_config.resource_monitoring:
                 self.metrics_collector.finish_experiment(
-                    full_experiment_id, 
-                    success=False,  # Will be updated by caller
-                    error_msg=None
+                    full_experiment_id,
+                    success=success,
+                    error_msg=error_msg
                 )
     
     def run_single_experiment(self, config: EnhancedExperimentConfig, run_id: int) -> Tuple[bool, str]:
