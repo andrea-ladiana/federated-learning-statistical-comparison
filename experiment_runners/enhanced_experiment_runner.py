@@ -259,9 +259,12 @@ class MetricsCollector:
     
     def _monitor_resources(self, experiment_id: str, stop_event: threading.Event):
         """Loop di monitoraggio delle risorse."""
+        # Prime CPU percent measurement to avoid returning 0 on first call
+        psutil.cpu_percent(interval=None)
         while not stop_event.is_set():
             try:
-                cpu_percent = psutil.cpu_percent(interval=1)
+                time.sleep(5)  # Sample every 5 seconds
+                cpu_percent = psutil.cpu_percent(interval=None)
                 memory_percent = psutil.virtual_memory().percent
                 if experiment_id in self.metrics:
                     metrics = self.metrics[experiment_id]
@@ -273,8 +276,6 @@ class MetricsCollector:
                     metrics.cpu_usage.append(cpu_percent)
                     metrics.memory_usage.append(memory_percent)
                     # The previous line already appends to the memory usage, no need for this line
-                
-                time.sleep(5)  # Sample every 5 seconds
             except Exception as e:
                 logger.warning(f"Error monitoring resources for {experiment_id}: {e}")
                 break
