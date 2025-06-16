@@ -384,7 +384,12 @@ class ExperimentRunner:
             logger.error(
                 f"Experiment {experiment_id}, run {run_id} timed out after {self.process_timeout} seconds"
             )
-            process.kill()            # Log ultimi 10 righe di output per debug
+            process.kill()
+            try:
+                process.wait(timeout=5)
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                pass
+            # Log ultimi 10 righe di output per debug
             if output_lines:
                 logger.error("Last 10 lines before timeout:")
                 for line in list(output_lines)[-10:]:
