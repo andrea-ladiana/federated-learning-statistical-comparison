@@ -14,8 +14,16 @@ from torch.optim.sgd import SGD  # Explicitly import SGD from correct module
 import torch.nn.functional as F
 import torch.utils.data  # Add this import for Subset and DataLoader
 
-from torchvision import datasets, transforms # per la gestione dei dataset
-from models import Net, CNNNet, TinyMNIST, MinimalCNN, MiniResNet20, get_transform_common, get_transform_cifar  # Importazione dei modelli dal modulo condiviso
+from torchvision import datasets, transforms  # per la gestione dei dataset
+from models import (
+    Net,
+    CNNNet,
+    TinyMNIST,
+    MinimalCNN,
+    MiniResNet20,
+    get_transform_common,
+    get_transform_cifar,
+)  # Importazione dei modelli dal modulo condiviso
 
 # Importazione delle funzioni di attacco e configurazione
 import utilities.fl_attacks
@@ -35,6 +43,49 @@ DATA_ASYMMETRY = attack_cfg.data_asymmetry
 LABEL_FLIPPING = attack_cfg.label_flipping
 GRADIENT_FLIPPING = attack_cfg.gradient_flipping
 
+# Percorso dove salvare i dataset scaricati
+DATA_DIR = Path("./dataset")
+DATA_DIR.mkdir(exist_ok=True)
+
+# Cache per evitare di riscaricare i dataset ad ogni creazione di un client
+DATASET_CACHE = {}
+
+# Funzione di supporto per ottenere il dataset, con caching
+def _get_cached_dataset(dataset_name: str):
+    name = dataset_name.upper()
+    if name in DATASET_CACHE:
+        return DATASET_CACHE[name]
+
+    if name == "MNIST":
+        transform = transforms.Compose(
+            [
+                transforms.Resize(28),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,)),
+            ]
+        )
+        trainset = datasets.MNIST(DATA_DIR, train=True, download=True, transform=transform)
+        testset = datasets.MNIST(DATA_DIR, train=False, download=True, transform=transform)
+    elif name == "FMNIST":
+        transform = transforms.Compose(
+            [
+                transforms.Resize(28),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,)),
+            ]
+        )
+        trainset = datasets.FashionMNIST(DATA_DIR, train=True, download=True, transform=transform)
+        testset = datasets.FashionMNIST(DATA_DIR, train=False, download=True, transform=transform)
+    elif name == "CIFAR10":
+        raise ValueError(
+            "CIFAR-10 non è supportato con il modello TinyMNIST. Usa solo MNIST o Fashion-MNIST."
+        )
+    else:
+        raise ValueError(f"Dataset non supportato: {dataset_name}. Supportati: MNIST, FMNIST")
+
+    DATASET_CACHE[name] = (trainset, testset)
+    return trainset, testset
+
 # 1) definizione del modello locale
 # - I modelli sono ora importati dal modulo models.py
 
@@ -51,30 +102,8 @@ def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST
         apply_attacks: Se applicare gli attacchi configurati
         dataset_name: Nome del dataset ("MNIST", "FMNIST", "CIFAR10")
     """
-    # Seleziona il dataset e le trasformazioni appropriate per TinyMNIST (grayscale)
-    if dataset_name.upper() == "MNIST":
-        # TinyMNIST needs grayscale input (1 channel)
-        transform = transforms.Compose([
-            transforms.Resize(28),  # Keep MNIST original size
-            transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,))  # Single channel normalization
-        ])
-        trainset = datasets.MNIST(".", train=True, download=True, transform=transform)
-        testset = datasets.MNIST(".", train=False, download=True, transform=transform)
-    elif dataset_name.upper() == "FMNIST":
-        # TinyMNIST needs grayscale input (1 channel)
-        transform = transforms.Compose([
-            transforms.Resize(28),  # Keep Fashion-MNIST original size
-            transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,))  # Single channel normalization
-        ])
-        trainset = datasets.FashionMNIST(".", train=True, download=True, transform=transform)
-        testset = datasets.FashionMNIST(".", train=False, download=True, transform=transform)
-    elif dataset_name.upper() == "CIFAR10":
-        # CIFAR-10 is not supported with TinyMNIST model (requires grayscale input)
-        raise ValueError(f"CIFAR-10 non è supportato con il modello TinyMNIST. Usa solo MNIST o Fashion-MNIST.")
-    else:
-        raise ValueError(f"Dataset non supportato: {dataset_name}. Supportati: MNIST, FMNIST")
+    # Carica dataset e trasformazioni riutilizzando la cache se disponibile
+    trainset, testset = _get_cached_dataset(dataset_name)
     
     print(f"[Client {cid}] Caricamento dataset: {dataset_name}")
     
