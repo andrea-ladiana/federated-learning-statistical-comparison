@@ -96,15 +96,16 @@ class MetricsCollector:
     
     def parse_client_log(self, log_line: str, client_id: int, run_id: int) -> Optional[Dict]:
         """Estrae metriche dai log del client."""
+        num = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
         patterns = [
             # Pattern per fit metrics
-            r'fit complete.*avg_loss=([0-9.]+).*accuracy=([0-9.]+)',
-            # Pattern per evaluate metrics  
-            r'evaluate complete.*avg_loss=([0-9.]+).*accuracy=([0-9.]+)',
+            rf'fit complete.*avg_loss=({num}).*accuracy=({num})',
+            # Pattern per evaluate metrics
+            rf'evaluate complete.*avg_loss=({num}).*accuracy=({num})',
             # Pattern per training metrics durante il fit
-            r'Training batch.*loss=([0-9.]+).*acc=([0-9.]+)',
+            rf'Training batch.*loss=({num}).*acc=({num})',
             # Pattern per evaluation metrics durante evaluate
-            r'Eval batch.*loss=([0-9.]+).*acc=([0-9.]+)'
+            rf'Eval batch.*loss=({num}).*acc=({num})'
         ]
         
         for pattern in patterns:
@@ -139,11 +140,12 @@ class MetricsCollector:
     def parse_server_log(self, log_line: str, run_id: int) -> Optional[Dict]:
         """Estrae metriche dai log del server."""
         # Pattern per metriche aggregate del server
+        num = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
         patterns = [
-            r'Round (\d+).*aggr.*accuracy.*([0-9.]+)',
-            r'Round (\d+).*aggregated.*loss.*([0-9.]+)',
-            r'evaluate.*Round (\d+).*accuracy.*([0-9.]+)',
-            r'fit.*Round (\d+).*loss.*([0-9.]+)'
+            rf'Round (\d+).*aggr.*accuracy.*?({num})',
+            rf'Round (\d+).*aggregated.*loss.*?({num})',
+            rf'evaluate.*Round (\d+).*accuracy.*?({num})',
+            rf'fit.*Round (\d+).*loss.*?({num})'
         ]
         
         for pattern in patterns:
