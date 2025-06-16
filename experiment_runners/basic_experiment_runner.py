@@ -26,7 +26,7 @@ import psutil
 import traceback
 import argparse
 from pathlib import Path
-from typing import Dict, List, Tuple, Any, Optional, Deque
+from typing import Dict, List, Tuple, Any, Optional, Deque, Set
 from datetime import datetime
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -191,6 +191,9 @@ class ExperimentRunner:
 
         # Track current round across log lines
         self.current_round = 0
+
+        # Track PIDs of processes spawned by this runner
+        self._managed_pids: set[int] = set()
     
     def is_port_free(self, port: int) -> bool:
         """Verifica se una porta è libera."""
@@ -210,30 +213,34 @@ class ExperimentRunner:
             time.sleep(1)
     
     def kill_flower_processes(self):
-        """Termina tutti i processi Flower in esecuzione."""
-        logger.info("Scanning for existing Flower processes...")
+        """Terminate only the Flower processes spawned by this runner."""
+        if not self._managed_pids:
+            logger.info("No existing Flower processes found")
+            return
+
+        logger.info("Cleaning up managed Flower processes...")
         killed_count = 0
-        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
+
+        for pid in list(self._managed_pids):
             try:
-                cmdline = ' '.join(proc.info['cmdline']) if proc.info['cmdline'] else ''
-                cwd = proc.info.get('cwd')
-                in_base_dir = cwd and Path(cwd).resolve() == self.base_dir.resolve()
-                if (
-                    in_base_dir and 'python' in proc.info['name'].lower() and
-                    ('server.py' in cmdline or 'client.py' in cmdline or 'run_with_attacks.py' in cmdline)
-                ):
-                    logger.info(f"Terminating process {proc.info['pid']}: {cmdline}")
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=5)
-                        killed_count += 1
-                    except psutil.TimeoutExpired:
-                        logger.warning(f"Process {proc.info['pid']} did not terminate, killing...")
-                        proc.kill()
-                        killed_count += 1
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
-                continue
-        
+                proc = psutil.Process(pid)
+                cmdline = ' '.join(proc.cmdline())
+                logger.info(f"Terminating process {pid}: {cmdline}")
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                    killed_count += 1
+                except psutil.TimeoutExpired:
+                    logger.warning(f"Process {pid} did not terminate, killing...")
+                    proc.kill()
+                    killed_count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Process already gone or inaccessible
+                pass
+            finally:
+                if not psutil.pid_exists(pid):
+                    self._managed_pids.discard(pid)
+
         if killed_count > 0:
             logger.info(f"Terminated {killed_count} processes")
         else:
@@ -302,6 +309,9 @@ class ExperimentRunner:
             universal_newlines=True,
         )
         logger.info(f"Process started with PID: {process.pid}")
+
+        # Remember this PID for cleanup
+        self._managed_pids.add(process.pid)
         return process
 
     def _stream_process_output(self, process: subprocess.Popen, config: ExperimentConfig, run_id: int) -> Tuple[int, deque]:
