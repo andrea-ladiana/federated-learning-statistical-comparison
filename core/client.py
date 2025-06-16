@@ -249,11 +249,21 @@ class LoggingClient(fl.client.NumPyClient):
                 print(f"[Client {self.cid}] Batch {batch_idx}/{len(self.trainloader)} | "
                       f"loss={(total_loss/total):.4f}, acc={(correct/total):.4f}")
 
-        avg_loss = total_loss / total
-        accuracy = correct / total
-        precision = precision_score(y_true, y_pred, average="macro", zero_division=0)
-        recall = recall_score(y_true, y_pred, average="macro", zero_division=0)
-        f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+        if total > 0:
+            avg_loss = total_loss / total
+            accuracy = correct / total
+            precision = precision_score(
+                y_true, y_pred, average="macro", zero_division=0
+            )
+            recall = recall_score(
+                y_true, y_pred, average="macro", zero_division=0
+            )
+            f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+        else:
+            print(
+                f"[Client {self.cid}] No training data available, returning null metrics"
+            )
+            avg_loss = accuracy = precision = recall = f1 = 0.0
         print(
             f"[Client {self.cid}] fit complete | avg_loss={avg_loss:.4f}, accuracy={accuracy:.4f}, "
             f"precision={precision:.4f}, recall={recall:.4f}, f1={f1:.4f}"
@@ -311,11 +321,21 @@ class LoggingClient(fl.client.NumPyClient):
                     print(f"[Client {self.cid}] Eval batch {batch_idx}/{len(self.testloader)} | "
                           f"loss={(total_loss/total):.4f}, acc={(correct/total):.4f}")
 
-        avg_loss = total_loss / total
-        accuracy = correct / total
-        precision = precision_score(y_true, y_pred, average="macro", zero_division=0)
-        recall = recall_score(y_true, y_pred, average="macro", zero_division=0)
-        f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+        if total > 0:
+            avg_loss = total_loss / total
+            accuracy = correct / total
+            precision = precision_score(
+                y_true, y_pred, average="macro", zero_division=0
+            )
+            recall = recall_score(
+                y_true, y_pred, average="macro", zero_division=0
+            )
+            f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+        else:
+            print(
+                f"[Client {self.cid}] No evaluation data available, returning null metrics"
+            )
+            avg_loss = accuracy = precision = recall = f1 = 0.0
         print(
             f"[Client {self.cid}] evaluate complete | avg_loss={avg_loss:.4f}, accuracy={accuracy:.4f}, "
             f"precision={precision:.4f}, recall={recall:.4f}, f1={f1:.4f}"
