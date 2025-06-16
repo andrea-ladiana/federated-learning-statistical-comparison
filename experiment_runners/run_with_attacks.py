@@ -80,6 +80,20 @@ except Exception as e:
         return _FallbackConfig()
 
 
+def terminate_process(proc: subprocess.Popen, timeout: int = 5) -> None:
+    """Terminate a subprocess gracefully, killing it if it ignores SIGTERM."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"Process did not terminate in {timeout}s, killing...")
+        proc.kill()
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            pass
+
+
 def wait_for_server(port: int, host: str = "localhost", timeout: float = 5.0) -> bool:
     """Wait until a TCP port is accepting connections."""
     start_time = time.time()
@@ -92,6 +106,7 @@ def wait_for_server(port: int, host: str = "localhost", timeout: float = 5.0) ->
             except (ConnectionRefusedError, OSError):
                 time.sleep(0.5)
     return False
+
 
 def main():
     parser = argparse.ArgumentParser(description="Avvia esperimenti di FL con attacchi")
@@ -346,8 +361,7 @@ def main():
     
     # Termina il server
     print("Terminazione del server...")
-    server_process.terminate()
-    server_process.wait()
+    terminate_process(server_process)
     
     print("Esperimento completato")
 
