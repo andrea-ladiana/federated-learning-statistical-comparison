@@ -15,9 +15,11 @@ Gli attacchi sono stati spostati nella cartella attacks/ e organizzati in moduli
 import sys
 from pathlib import Path
 
-# Add path for attacks import
+# Add path for attacks import, avoiding duplicates in sys.path
 parent_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(parent_dir / "attacks"))
+attack_path = str(parent_dir / "attacks")
+if attack_path not in sys.path:
+    sys.path.insert(0, attack_path)
 
 # Importa tutte le funzioni dai moduli degli attacchi per mantenere la compatibilità
 from attacks import *
