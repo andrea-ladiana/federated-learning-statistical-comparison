@@ -632,7 +632,8 @@ class EnhancedExperimentRunner:
                             proc.kill()
                         except (ValueError, psutil.NoSuchProcess, psutil.AccessDenied):
                             continue
-        except Exception as e:            logger.warning(f"Error killing processes using port {port}: {e}")
+        except Exception as e:
+            logger.warning(f"Error killing processes using port {port}: {e}")
             
     def wait_for_port(self, port: int, timeout: int = 60):
         """Attende che una porta diventi libera."""
