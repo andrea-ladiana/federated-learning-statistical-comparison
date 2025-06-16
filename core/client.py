@@ -207,6 +207,7 @@ class LoggingClient(fl.client.NumPyClient):
         # Carica i dati con potenziali attacchi applicati
         self.trainloader, self.testloader = load_data(cid=cid, num_clients=num_clients, apply_attacks=self.attack_cfg.enable_attacks, dataset_name=dataset_name, attack_cfg=self.attack_cfg)
         self.current_round = 0
+        self.noise_clients = []
         print(f"[Client {cid}] Inizializzato con modello TinyMNIST per dataset {dataset_name}")
 
     def get_parameters(self, config):
@@ -250,18 +251,27 @@ class LoggingClient(fl.client.NumPyClient):
         self.model.train()
         total_loss, correct, total = 0.0, 0, 0
         y_true, y_pred = [], []
+        noise_clients = []
+        if self.attack_cfg.enable_attacks and self.attack_cfg.noise_injection["enabled"]:
+            noise_clients = utilities.fl_attacks.select_clients_for_noise_injection(
+                self.num_clients, self.attack_cfg.noise_injection["attack_fraction"])
+            self.noise_clients = noise_clients
+            print(
+                f"[Client {self.cid}] Noise Injection target clients for round {self.current_round}: {noise_clients}"
+            )
+
         for batch_idx, (data, target) in enumerate(self.trainloader, 1):
             # 1. Noise Injection Attack
             if self.attack_cfg.enable_attacks and self.attack_cfg.noise_injection["enabled"]:
-                # Verifica se questo client è un target per noise injection
-                noise_clients = utilities.fl_attacks.select_clients_for_noise_injection(
-                    self.num_clients, self.attack_cfg.noise_injection["attack_fraction"])
-                
                 if int(self.cid) in noise_clients:
                     # Applica noise injection ai dati
-                    data = utilities.fl_attacks.apply_noise_injection(data, self.attack_cfg.noise_injection["noise_std"])
+                    data = utilities.fl_attacks.apply_noise_injection(
+                        data, self.attack_cfg.noise_injection["noise_std"]
+                    )
                     if batch_idx == 1:  # Stampa solo una volta per round
-                        print(f"[Client {self.cid}] Noise Injection Attack: std={self.attack_cfg.noise_injection['noise_std']}")
+                        print(
+                            f"[Client {self.cid}] Noise Injection Attack: std={self.attack_cfg.noise_injection['noise_std']}"
+                        )
             
             optimizer.zero_grad()
             output = self.model(data)
