@@ -26,7 +26,7 @@ import psutil
 import traceback
 import argparse
 from pathlib import Path
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Deque
 from datetime import datetime
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -290,122 +290,142 @@ class ExperimentRunner:
         """Esegue un singolo esperimento con logging migliorato."""
         experiment_id = config.get_experiment_id()
         logger.info(f"Starting experiment {experiment_id}, run {run_id}")
-        
+
         # Reset round tracking for new experiment
         self.current_round = 0
-        
+
         try:
-            # Assicurati che la porta sia libera
-            logger.info("Killing existing Flower processes...")
-            self.kill_flower_processes()
-            logger.info("Waiting for port 8080 to be free...")
-            self.wait_for_port(8080, timeout=30)
-            
-            # Costruisci e esegui il comando
-            cmd = self.build_attack_command(config)
-            logger.info(f"Running command: {' '.join(cmd)}")
-            
-            # CRITICAL FIX: Extract actual strategy from command and store it
-            actual_strategy = self._extract_strategy_from_command(cmd)
-            setattr(config, '_actual_strategy', actual_strategy)
-            
-            if actual_strategy != config.strategy:
-                logger.warning(f"Strategy mismatch: config={config.strategy}, command={actual_strategy}")
-            
-            # Esegui l'esperimento con timeout
-            logger.info("Starting subprocess...")
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=self.base_dir,
-                bufsize=1,  # Line buffered
-                universal_newlines=True
-            )
-            
-            logger.info(f"Process started with PID: {process.pid}")
-              # Raccogli l'output in tempo reale (manteniamo solo le ultime 1000 righe)
-            output_lines = deque(maxlen=1000)
-            line_count = 0
-            last_log_time = time.time()
-            last_progress_report = time.time()
-            
-            while True:
-                if process.stdout is not None:
-                    line = process.stdout.readline()
-                    if not line and process.poll() is not None:
-                        break
-                    if line:
-                        line_stripped = line.strip()
-                        output_lines.append(line_stripped)
-                        line_count += 1
-                        
-                        current_time = time.time()
-                        
-                        # Report progresso ogni 30 secondi
-                        if current_time - last_progress_report > 30:
-                            logger.info(f"Experiment still running... Processed {line_count} lines")
-                            last_progress_report = current_time
-                        
-                        # Log righe importanti immediatamente
-                        if any(keyword in line_stripped.lower() for keyword in 
-                              ['round', 'client', 'server', 'accuracy', 'loss', 'error', 'exception', 'failed', 'starting']):
-                            logger.info(f"OUTPUT: {line_stripped}")
-                          # Log ogni 50 righe con sample dell'output
-                        elif line_count % 50 == 0:
-                            logger.info(f"Processing line {line_count}: {line_stripped[:100]}...")
-                        
-                        # Parse metrics in tempo reale
-                        self.parse_and_store_metrics(line_stripped, config, run_id)
-                else:
-                    break
-            
-            # Attendi che il processo finisca
+            process, output_lines = self._launch_process(config)
+            line_count = self._stream_process_output(process, config, run_id, output_lines)
+
             logger.info("Waiting for process to complete...")
             return_code = process.wait(timeout=self.process_timeout)
-            
+
             logger.info(f"Process completed with return code: {return_code}")
             logger.info(f"Total output lines processed: {line_count}")
-            
+
             if return_code == 0:
                 logger.info(f"Experiment {experiment_id}, run {run_id} completed successfully")
                 return True
             else:
                 logger.error(f"Experiment {experiment_id}, run {run_id} failed with return code {return_code}")
-                # Log ultimi 10 righe di output per debug
                 if output_lines:
                     logger.error("Last 10 lines of output:")
                     for line in list(output_lines)[-10:]:
                         logger.error(f"  {line}")
                 return False
-                
+
         except subprocess.TimeoutExpired:
             logger.error(
                 f"Experiment {experiment_id}, run {run_id} timed out after {self.process_timeout} seconds"
             )
-            process.kill()
-            try:
-                process.wait(timeout=5)
-            except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
-                pass
-            # Log ultimi 10 righe di output per debug
-            if output_lines:
-                logger.error("Last 10 lines before timeout:")
-                for line in list(output_lines)[-10:]:
-                    logger.error(f"  {line}")
+            self._handle_timeout(process, output_lines)
             return False
         except Exception as e:
             logger.error(f"Error in experiment {experiment_id}, run {run_id}: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
         finally:
-            # Cleanup
             logger.info("Cleaning up processes...")
             self.kill_flower_processes()
-            time.sleep(2)  # Grace period
-            # The method must return a bool, but since we're in finally block
-            # the actual return value comes from the try/except blocks above
+            time.sleep(2)
+            # The method returns based on try/except blocks above
+
+    def _launch_process(self, config: ExperimentConfig) -> Tuple[subprocess.Popen, Deque[str]]:
+        """Avvia il processo dell'esperimento e prepara la raccolta log."""
+        logger.info("Killing existing Flower processes...")
+        self.kill_flower_processes()
+        logger.info("Waiting for port 8080 to be free...")
+        self.wait_for_port(8080, timeout=30)
+
+        cmd = self.build_attack_command(config)
+        logger.info(f"Running command: {' '.join(cmd)}")
+
+        actual_strategy = self._extract_strategy_from_command(cmd)
+        setattr(config, '_actual_strategy', actual_strategy)
+        if actual_strategy != config.strategy:
+            logger.warning(f"Strategy mismatch: config={config.strategy}, command={actual_strategy}")
+
+        logger.info("Starting subprocess...")
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            cwd=self.base_dir,
+            bufsize=1,
+            universal_newlines=True
+        )
+        logger.info(f"Process started with PID: {process.pid}")
+
+        output_lines: Deque[str] = deque(maxlen=1000)
+        return process, output_lines
+
+    def _stream_process_output(
+        self,
+        process: subprocess.Popen,
+        config: ExperimentConfig,
+        run_id: int,
+        output_lines: Deque[str],
+    ) -> int:
+        """Legge l'output del processo e aggiorna le metriche."""
+        line_count = 0
+        last_progress_report = time.time()
+
+        while True:
+            if process.stdout is not None:
+                line = process.stdout.readline()
+                if not line and process.poll() is not None:
+                    break
+                if line:
+                    line_stripped = line.strip()
+                    output_lines.append(line_stripped)
+                    line_count += 1
+
+                    current_time = time.time()
+                    if current_time - last_progress_report > 30:
+                        logger.info(
+                            f"Experiment still running... Processed {line_count} lines"
+                        )
+                        last_progress_report = current_time
+
+                    if any(
+                        keyword in line_stripped.lower()
+                        for keyword in [
+                            'round',
+                            'client',
+                            'server',
+                            'accuracy',
+                            'loss',
+                            'error',
+                            'exception',
+                            'failed',
+                            'starting',
+                        ]
+                    ):
+                        logger.info(f"OUTPUT: {line_stripped}")
+                    elif line_count % 50 == 0:
+                        logger.info(
+                            f"Processing line {line_count}: {line_stripped[:100]}..."
+                        )
+
+                    self.parse_and_store_metrics(line_stripped, config, run_id)
+            else:
+                break
+
+        return line_count
+
+    def _handle_timeout(self, process: subprocess.Popen, output_lines: Deque[str]):
+        """Gestisce la terminazione del processo in caso di timeout."""
+        process.kill()
+        try:
+            process.wait(timeout=5)
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            pass
+        if output_lines:
+            logger.error("Last 10 lines before timeout:")
+            for line in list(output_lines)[-10:]:
+                logger.error(f"  {line}")
 
     def _extract_strategy_from_command(self, command: List[str]) -> str:
         """Extract strategy from command line arguments."""
