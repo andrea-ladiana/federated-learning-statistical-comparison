@@ -10,6 +10,7 @@ import io
 # Exception classes
 # ---------------------------------------------------------------------------
 
+
 class ParameterConversionError(RuntimeError):
     """Raised when converting model parameters fails."""
 
@@ -18,8 +19,13 @@ class ParameterConversionError(RuntimeError):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("strategies")
 
+
 # Correct type for evaluate_fn
-EvaluateFnType = Callable[[int, NDArrays, Dict[str, Scalar]], Optional[Tuple[float, Dict[str, Scalar]]]]
+EvaluateFnType = Callable[
+    [int, NDArrays, Dict[str, Scalar]],
+    Optional[Tuple[float, Dict[str, Scalar]]],
+]
+
 
 def parameters_to_ndarrays(parameters: Parameters) -> List[np.ndarray]:
     """Convert parameters to numpy ndarrays.
@@ -35,13 +41,17 @@ def parameters_to_ndarrays(parameters: Parameters) -> List[np.ndarray]:
         logger.error(f"Error converting parameters to ndarrays: {str(e)}")
         raise ParameterConversionError(str(e)) from e
 
+
 def ndarrays_to_parameters(ndarrays: List[np.ndarray]) -> Parameters:
     """Convert numpy ndarrays to parameters with improved error handling."""
     try:
         tensors = []
         for ndarray in ndarrays:
             # Ensure the array is contiguous and correct dtype
-            ndarray_contiguous = np.ascontiguousarray(ndarray, dtype=np.float32)
+            ndarray_contiguous = np.ascontiguousarray(
+                ndarray,
+                dtype=np.float32,
+            )
             bytes_io = io.BytesIO()
             np.save(bytes_io, ndarray_contiguous, allow_pickle=False)
             tensors.append(bytes_io.getvalue())
@@ -50,6 +60,7 @@ def ndarrays_to_parameters(ndarrays: List[np.ndarray]) -> Parameters:
         logger.error(f"Error converting ndarrays to parameters: {str(e)}")
         # Return empty parameters if conversion fails
         return Parameters(tensors=[], tensor_type="numpy.ndarray")
+
 
 # Additional helper for safer parameter handling
 def safe_aggregate_parameters(parameter_list: List[Parameters]) -> Parameters:
@@ -70,12 +81,21 @@ def safe_aggregate_parameters(parameter_list: List[Parameters]) -> Parameters:
         ref_shapes = [layer.shape for layer in valid_ndarrays[0]]
         for ndarrays in valid_ndarrays[1:]:
             if len(ndarrays) != len(ref_shapes):
-                logger.error("Shape mismatch detected in safe_aggregate_parameters")
-                return Parameters(tensors=[], tensor_type="numpy.ndarray")
+                logger.error(
+                    "Shape mismatch detected in safe_aggregate_parameters"
+                )
+                return Parameters(
+                    tensors=[], tensor_type="numpy.ndarray"
+                )
             for layer, ref_shape in zip(ndarrays, ref_shapes):
                 if layer.shape != ref_shape:
-                    logger.error("Shape mismatch detected in safe_aggregate_parameters")
-                    return Parameters(tensors=[], tensor_type="numpy.ndarray")
+                    logger.error(
+                        "Shape mismatch detected in "
+                        "safe_aggregate_parameters"
+                    )
+                    return Parameters(
+                        tensors=[], tensor_type="numpy.ndarray"
+                    )
 
         # Use the first valid result as a template
         aggregated = [np.zeros_like(layer) for layer in valid_ndarrays[0]]
@@ -90,10 +110,19 @@ def safe_aggregate_parameters(parameter_list: List[Parameters]) -> Parameters:
         logger.error(f"Error in safe_aggregate_parameters: {str(e)}")
         return Parameters(tensors=[], tensor_type="numpy.ndarray")
 
-def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_factors: List[float]) -> List[np.ndarray]:
-    """Aggregate model weights using weighted averaging with normalization factors and error handling."""
+
+def aggregate_ndarrays_weighted(
+    weights: List[List[np.ndarray]],
+    normalization_factors: List[float],
+) -> List[np.ndarray]:
+    """Aggregate model weights using weighted averaging with normalization
+    factors and error handling."""
     try:
-        if not weights or not normalization_factors or len(weights) != len(normalization_factors):
+        if (
+            not weights
+            or not normalization_factors
+            or len(weights) != len(normalization_factors)
+        ):
             logger.error("Invalid inputs to aggregate_ndarrays_weighted")
             return []
 
@@ -107,8 +136,10 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
         if total_factor <= 0:
             logger.error("Sum of normalization factors must be positive")
             return []
-        normalization_factors = [f / total_factor for f in normalization_factors]
-        
+        normalization_factors = [
+            f / total_factor for f in normalization_factors
+        ]
+
         factors = np.asarray(normalization_factors, dtype=np.float32)
 
         aggregated_ndarrays = []
@@ -135,8 +166,11 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
         logger.error(f"Error in aggregate_ndarrays_weighted: {str(e)}")
         return []
 
+
 # Function to calculate weighted average of metrics
-def weighted_average(metrics: List[Tuple[int, Optional[Dict[str, Scalar]]]]) -> Dict[str, Scalar]:
+def weighted_average(
+    metrics: List[Tuple[int, Optional[Dict[str, Scalar]]]]
+) -> Dict[str, Scalar]:
     """Compute weighted average for an arbitrary set of metrics.
 
     Only tuples with a positive ``num_examples`` and a non ``None`` metrics
@@ -166,26 +200,45 @@ def weighted_average(metrics: List[Tuple[int, Optional[Dict[str, Scalar]]]]) -> 
     aggregated: Dict[str, Scalar] = {}
     all_keys = set().union(*(m.keys() for _, m in valid_metrics))
     for key in all_keys:
-        values = [float(m.get(key, 0.0)) * num_examples for num_examples, m in valid_metrics]
+        values = [
+            float(m.get(key, 0.0)) * num_examples
+            for num_examples, m in valid_metrics
+        ]
         aggregated[key] = float(sum(values)) / total_examples
 
     return aggregated
 
+
 # Base strategy class with common functionality
 class BaseStrategy(abc.ABC):
-    """Base class for all FL strategies with common reporting and metrics handling."""
-    
-    def report_failures(self, server_round: int, failures: List[Union[Tuple[Any, Any], BaseException]], phase: str):
+    """Base class for all FL strategies with common reporting and metrics
+    handling."""
+
+    def report_failures(
+        self,
+        server_round: int,
+        failures: List[Union[Tuple[Any, Any], BaseException]],
+        phase: str,
+    ) -> None:
         """Report client failures during a round."""
         if failures:
-            print(f"[Server] Round {server_round}: {len(failures)} clients failed during {phase}")
+            print(
+                f"[Server] Round {server_round}:"
+                f" {len(failures)} clients failed during {phase}"
+            )
             for failure in failures:
                 if isinstance(failure, BaseException):
                     print(f"[Server] Client failure: {str(failure)}")
                 else:
                     client, _ = failure
                     print(f"[Server] Client {client.cid} failed")
-    def report_metrics(self, server_round: int, metrics: Dict[str, Scalar], phase: str):
+
+    def report_metrics(
+        self,
+        server_round: int,
+        metrics: Dict[str, Scalar],
+        phase: str,
+    ) -> None:
         """Report aggregated metrics."""
         if metrics:
             ordered_keys = ["accuracy", "loss", "precision", "recall", "f1"]
