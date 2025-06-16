@@ -44,24 +44,35 @@ def safe_aggregate_parameters(parameter_list: List[Parameters]) -> Parameters:
     """Safely aggregate multiple parameter objects into one."""
     if not parameter_list:
         return Parameters(tensors=[], tensor_type="numpy.ndarray")
-    
+
     try:
         # Convert all parameters to ndarrays
         all_ndarrays = [parameters_to_ndarrays(p) for p in parameter_list]
         # Filter out empty results
         valid_ndarrays = [arr for arr in all_ndarrays if len(arr) > 0]
-        
+
         if not valid_ndarrays:
             return Parameters(tensors=[], tensor_type="numpy.ndarray")
-        
+
+        # Validate that all arrays have matching shapes
+        ref_shapes = [layer.shape for layer in valid_ndarrays[0]]
+        for ndarrays in valid_ndarrays[1:]:
+            if len(ndarrays) != len(ref_shapes):
+                logger.error("Shape mismatch detected in safe_aggregate_parameters")
+                return Parameters(tensors=[], tensor_type="numpy.ndarray")
+            for layer, ref_shape in zip(ndarrays, ref_shapes):
+                if layer.shape != ref_shape:
+                    logger.error("Shape mismatch detected in safe_aggregate_parameters")
+                    return Parameters(tensors=[], tensor_type="numpy.ndarray")
+
         # Use the first valid result as a template
         aggregated = [np.zeros_like(layer) for layer in valid_ndarrays[0]]
-        
+
         # Simple averaging
         for ndarrays in valid_ndarrays:
             for i, layer in enumerate(ndarrays):
                 aggregated[i] += layer / len(valid_ndarrays)
-        
+
         return ndarrays_to_parameters(aggregated)
     except Exception as e:
         logger.error(f"Error in safe_aggregate_parameters: {str(e)}")
