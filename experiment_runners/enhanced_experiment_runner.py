@@ -862,29 +862,25 @@ class EnhancedExperimentRunner:
     
     def parse_and_store_metrics(self, log_line: str, config: EnhancedExperimentConfig, run_id: int) -> None:
         """Analizza una riga di output e memorizza le metriche rilevanti."""
+
         try:
-            # Utilizza _actual_strategy se disponibile, altrimenti config.strategy
             current_strategy = getattr(config, '_actual_strategy', config.strategy)
-            
-            # Get attack name with parameters for complete identification
             attack_with_params = config.get_attack_name_with_params()
-            
-            # Track round numbers from log
+
             round_match = re.search(r"\[ROUND (\d+)\]", log_line)
             if round_match:
                 self.current_round = int(round_match.group(1))
                 return
-            
-            # Server-side metrics from aggregate fit
+
+            metrics_to_add: List[Dict[str, Any]] = []
+
             server_fit_match = re.search(r"\[Server\] Round (\d+) aggregate fit -> (.+)", log_line)
             if server_fit_match:
                 round_num = int(server_fit_match.group(1))
                 metrics_str = server_fit_match.group(2)
-                
-                # Parse multiple metrics from the string
                 metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
                 for metric_name, metric_value in metric_matches:
-                    new_row = {
+                    metrics_to_add.append({
                         "algorithm": current_strategy,
                         "attack": attack_with_params,
                         "dataset": config.dataset,
@@ -893,21 +889,15 @@ class EnhancedExperimentRunner:
                         "round": round_num,
                         "metric": f"fit_{metric_name}",
                         "value": float(metric_value),
-                    }
-                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
-                    logger.debug(f"Stored server fit metric: {new_row}")
-                return
-            
-            # Server-side metrics from evaluate
+                    })
+
             server_eval_match = re.search(r"\[Server\] Round (\d+) evaluate -> (.+)", log_line)
             if server_eval_match:
                 round_num = int(server_eval_match.group(1))
                 metrics_str = server_eval_match.group(2)
-                
-                # Parse multiple metrics from the string
                 metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
                 for metric_name, metric_value in metric_matches:
-                    new_row = {
+                    metrics_to_add.append({
                         "algorithm": current_strategy,
                         "attack": attack_with_params,
                         "dataset": config.dataset,
@@ -916,25 +906,17 @@ class EnhancedExperimentRunner:
                         "round": round_num,
                         "metric": f"eval_{metric_name}",
                         "value": float(metric_value),
-                    }
-                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
-                    logger.debug(f"Stored server eval metric: {new_row}")
-                return
-            
-            # Client-side fit metrics
+                    })
+
             client_fit_match = re.search(r"\[Client (\d+)\] fit complete \| (.+)", log_line)
             if client_fit_match:
                 client_id = int(client_fit_match.group(1))
                 metrics_str = client_fit_match.group(2)
-                
-                # Parse multiple metrics from the string
                 metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
                 for metric_name, metric_value in metric_matches:
-                    # Map avg_loss to loss for consistency
                     if metric_name == "avg_loss":
                         metric_name = "loss"
-                    
-                    new_row = {
+                    metrics_to_add.append({
                         "algorithm": current_strategy,
                         "attack": attack_with_params,
                         "dataset": config.dataset,
@@ -943,25 +925,17 @@ class EnhancedExperimentRunner:
                         "round": self.current_round,
                         "metric": f"fit_{metric_name}",
                         "value": float(metric_value),
-                    }
-                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
-                    logger.debug(f"Stored client fit metric: {new_row}")
-                return
-            
-            # Client-side evaluate metrics
+                    })
+
             client_eval_match = re.search(r"\[Client (\d+)\] evaluate complete \| (.+)", log_line)
             if client_eval_match:
                 client_id = int(client_eval_match.group(1))
                 metrics_str = client_eval_match.group(2)
-                
-                # Parse multiple metrics from the string
                 metric_matches = re.findall(r"(\w+)=([\d\.]+)", metrics_str)
                 for metric_name, metric_value in metric_matches:
-                    # Map avg_loss to loss for consistency
                     if metric_name == "avg_loss":
                         metric_name = "loss"
-                    
-                    new_row = {
+                    metrics_to_add.append({
                         "algorithm": current_strategy,
                         "attack": attack_with_params,
                         "dataset": config.dataset,
@@ -970,22 +944,20 @@ class EnhancedExperimentRunner:
                         "round": self.current_round,
                         "metric": f"eval_{metric_name}",
                         "value": float(metric_value),
-                    }
-                    self.results_df = pd.concat([self.results_df, pd.DataFrame([new_row])], ignore_index=True)
-                    logger.debug(f"Stored client eval metric: {new_row}")
-                return
-            
-            # Client configuration messages to track round
-            client_config_match = re.search(r"\[Client (\d+)\] (?:fit|evaluate) \| Received parameters, config: \{'round': (\d+)\}", log_line)
+                    })
+
+            client_config_match = re.search(r"\[Client (\d+)\] (?:fit|evaluate)\| Received parameters, config: \{'round': (\d+)\}", log_line)
             if client_config_match:
                 round_num = int(client_config_match.group(2))
                 self.current_round = round_num
-                return
+
+            if metrics_to_add:
+                new_rows = pd.DataFrame(metrics_to_add)
+                self.results_df = pd.concat([self.results_df, new_rows], ignore_index=True)
 
         except Exception as e:
             logger.error(f"Error parsing metrics from line '{log_line}': {e}")
             logger.debug(traceback.format_exc())
-
 
     def run_experiments_parallel(self, 
                                 configs: List[EnhancedExperimentConfig], 
