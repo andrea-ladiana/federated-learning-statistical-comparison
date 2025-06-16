@@ -97,23 +97,37 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
         return []
 
 # Function to calculate weighted average of metrics
-def weighted_average(metrics: List[Tuple[int, Dict[str, Scalar]]]) -> Dict[str, Scalar]:
-    """Compute weighted average for an arbitrary set of metrics."""
+def weighted_average(metrics: List[Tuple[int, Optional[Dict[str, Scalar]]]]) -> Dict[str, Scalar]:
+    """Compute weighted average for an arbitrary set of metrics.
+
+    Only tuples with a positive ``num_examples`` and a non ``None`` metrics
+    dictionary contribute to the aggregation.
+    """
     if not metrics:
         logger.warning("No metrics provided to weighted_average")
         return {}
 
-    examples = [num_examples for num_examples, _ in metrics]
-    total_examples = sum(examples)
+    # Filter out invalid entries
+    valid_metrics = [
+        (num_examples, m)
+        for num_examples, m in metrics
+        if m is not None and num_examples > 0
+    ]
+
+    if not valid_metrics:
+        logger.warning("No valid metrics to aggregate in weighted_average")
+        return {}
+
+    total_examples = sum(num_examples for num_examples, _ in valid_metrics)
 
     if total_examples == 0:
         logger.warning("Total number of examples is zero in weighted_average")
         return {}
 
     aggregated: Dict[str, Scalar] = {}
-    all_keys = set().union(*(m.keys() for _, m in metrics))
+    all_keys = set().union(*(m.keys() for _, m in valid_metrics))
     for key in all_keys:
-        values = [float(m.get(key, 0.0)) * num_examples for num_examples, m in metrics]
+        values = [float(m.get(key, 0.0)) * num_examples for num_examples, m in valid_metrics]
         aggregated[key] = float(sum(values)) / total_examples
 
     return aggregated
