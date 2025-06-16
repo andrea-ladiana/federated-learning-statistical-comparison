@@ -97,23 +97,27 @@ def aggregate_ndarrays_weighted(weights: List[List[np.ndarray]], normalization_f
             return []
         normalization_factors = [f / total_factor for f in normalization_factors]
         
-        # Create a list of empty ndarrays, one for each layer
-        aggregated_ndarrays = [
-            np.zeros_like(weights[0][i]) for i in range(len(weights[0]))
-        ]
-        
-        # Weighted average using normalization factors
-        for i, factor in enumerate(normalization_factors):
-            for j, weight in enumerate(weights[i]):
+        factors = np.asarray(normalization_factors, dtype=np.float32)
+
+        aggregated_ndarrays = []
+        try:
+            layers = list(zip(*weights))
+            for layer_idx, layer_weights in enumerate(layers):
                 try:
-                    # Ensure weight is a proper numpy array with correct dtype
-                    if not isinstance(weight, np.ndarray):
-                        weight = np.array(weight, dtype=np.float32)
-                    weight = np.ascontiguousarray(weight, dtype=np.float32)
-                    aggregated_ndarrays[j] += weight * factor
+                    stack = np.stack([
+                        np.asarray(w, dtype=np.float32) for w in layer_weights
+                    ])
+                    aggregated = np.average(stack, axis=0, weights=factors)
+                    aggregated_ndarrays.append(aggregated)
                 except Exception as e:
-                    logger.warning(f"Error processing weight at index {i},{j}: {str(e)}")
-        
+                    logger.warning(
+                        f"Error processing layer {layer_idx}: {str(e)}"
+                    )
+                    aggregated_ndarrays.append(np.zeros_like(layer_weights[0]))
+        except Exception as e:
+            logger.error(f"Error stacking weights: {str(e)}")
+            return []
+
         return aggregated_ndarrays
     except Exception as e:
         logger.error(f"Error in aggregate_ndarrays_weighted: {str(e)}")
