@@ -808,6 +808,10 @@ class EnhancedExperimentRunner:
                 
             except subprocess.TimeoutExpired:
                 process.kill()
+                try:
+                    process.wait(timeout=5)
+                except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                    pass
                 output_lines.append("Process timed out")
                 success = False
                 error_msg = "Process timed out"
