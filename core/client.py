@@ -123,19 +123,17 @@ def load_data(cid=None, num_clients=10, apply_attacks=False, dataset_name="MNIST
                 source_class, target_class = utilities.fl_attacks.select_source_target_classes(
                     fixed_source=LABEL_FLIPPING["fixed_source"],
                     fixed_target=LABEL_FLIPPING["fixed_target"])
-                
-                # Crea un sottoinsieme del dataset per questo client
-                client_subset = torch.utils.data.Subset(trainset, train_indices)
-                
-                # Applica il label flipping
+
+                # Applica il label flipping al sottoinsieme del client
                 modified_dataset, num_flipped = utilities.fl_attacks.apply_targeted_label_flipping(
-                    trainset, train_indices, source_class, target_class, 
+                    trainset, train_indices, source_class, target_class,
                     LABEL_FLIPPING["flip_probability"])
-                
+
                 # Sostituisci il subset originale con quello modificato
                 trainset_for_loader = modified_dataset
-                print(f"[Client {cid}] Label Flipping Attack: {num_flipped} etichette cambiate "
-                      f"da classe {source_class} a classe {target_class}")
+                print(
+                    f"[Client {cid}] Label Flipping Attack: {num_flipped} etichette cambiate "
+                    f"da classe {source_class} a classe {target_class}")
             else:
                 trainset_for_loader = torch.utils.data.Subset(trainset, train_indices)
         else:
