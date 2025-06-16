@@ -344,14 +344,16 @@ class PortManager:
         logger.info(f"Port manager initialized with ports {base_port}-{base_port + num_ports - 1}")
     
     def acquire_port(self) -> int:
-        """Acquisisce una porta disponibile."""
+        """Acquisisce una porta disponibile, assicurandosi che sia libera."""
         with self.lock:
-            if not self.available_ports:
-                raise ResourceError("No available ports")
-            port = self.available_ports.pop(0)
-            self.used_ports.add(port)
-            logger.debug(f"Acquired port {port}")
-            return port
+            while self.available_ports:
+                port = self.available_ports.pop(0)
+                if self.is_port_free(port):
+                    self.used_ports.add(port)
+                    logger.debug(f"Acquired port {port}")
+                    return port
+                logger.debug(f"Port {port} already in use, skipping")
+            raise ResourceError("No available ports")
     
     def release_port(self, port: int):
         """Rilascia una porta."""
@@ -365,7 +367,8 @@ class PortManager:
         """Verifica se una porta è libera."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('localhost', port))
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(("localhost", port))
                 return True
         except OSError:
             return False
